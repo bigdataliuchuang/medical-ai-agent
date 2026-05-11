@@ -1,41 +1,78 @@
+import json
 import os
+import sqlite3
 import time
-from dotenv import load_dotenv
+import threading
 
-load_dotenv()
-
+DB_PATH = os.getenv("SESSION_DB_PATH", os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "sessions.db"))
 MAX_TURNS = int(os.getenv("SESSION_MAX_TURNS", "10"))
 TIMEOUT_MIN = int(os.getenv("SESSION_TIMEOUT_MINUTES", "30"))
 
-_store: dict = {}  # session_id -> {"messages": [...], "last_active": timestamp}
+_lock = threading.Lock()
+
+
+def _get_conn() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def _init_db():
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    with _get_conn() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS sessions (
+                session_id TEXT PRIMARY KEY,
+                messages   TEXT NOT NULL DEFAULT '[]',
+                last_active REAL NOT NULL
+            )
+        """)
+        conn.commit()
+
+
+_init_db()
 
 
 def get_history(session_id: str) -> list:
     _cleanup_expired()
-    entry = _store.get(session_id)
-    if not entry:
+    with _lock, _get_conn() as conn:
+        row = conn.execute(
+            "SELECT messages FROM sessions WHERE session_id = ?", (session_id,)
+        ).fetchone()
+    if not row:
         return []
-    return entry["messages"]
+    return json.loads(row["messages"])
 
 
 def add_message(session_id: str, role: str, content: str):
-    _cleanup_expired()
-    if session_id not in _store:
-        _store[session_id] = {"messages": [], "last_active": time.time()}
-    entry = _store[session_id]
-    entry["messages"].append({"role": role, "content": content})
-    entry["last_active"] = time.time()
-    # 保留最近 N 轮（1轮=user+assistant）
-    if len(entry["messages"]) > MAX_TURNS * 2:
-        entry["messages"] = entry["messages"][-MAX_TURNS * 2:]
+    with _lock, _get_conn() as conn:
+        row = conn.execute(
+            "SELECT messages FROM sessions WHERE session_id = ?", (session_id,)
+        ).fetchone()
+        messages = json.loads(row["messages"]) if row else []
+        messages.append({"role": role, "content": content})
+        # 保留最近 N 轮
+        if len(messages) > MAX_TURNS * 2:
+            messages = messages[-MAX_TURNS * 2:]
+        conn.execute(
+            """INSERT INTO sessions (session_id, messages, last_active)
+               VALUES (?, ?, ?)
+               ON CONFLICT(session_id) DO UPDATE SET
+                 messages = excluded.messages,
+                 last_active = excluded.last_active""",
+            (session_id, json.dumps(messages, ensure_ascii=False), time.time()),
+        )
+        conn.commit()
 
 
 def clear_session(session_id: str):
-    _store.pop(session_id, None)
+    with _lock, _get_conn() as conn:
+        conn.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
+        conn.commit()
 
 
 def _cleanup_expired():
-    now = time.time()
-    expired = [sid for sid, entry in _store.items() if now - entry["last_active"] > TIMEOUT_MIN * 60]
-    for sid in expired:
-        del _store[sid]
+    cutoff = time.time() - TIMEOUT_MIN * 60
+    with _lock, _get_conn() as conn:
+        conn.execute("DELETE FROM sessions WHERE last_active < ?", (cutoff,))
+        conn.commit()
