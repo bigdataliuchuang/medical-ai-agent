@@ -1,4 +1,5 @@
 import os
+import asyncio
 from pymilvus import connections, Collection
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
@@ -62,3 +63,7 @@ def _retrieve_milvus(question: str, top_k: int) -> list:
 
 def _fallback_all() -> list:
     return load_all_schemas(SCHEMA_DIR)
+
+
+async def retrieve_async(question: str, top_k: int = 3) -> list:
+    return await asyncio.to_thread(retrieve, question, top_k)

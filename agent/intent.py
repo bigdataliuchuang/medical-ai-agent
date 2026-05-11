@@ -2,7 +2,7 @@ import os
 import json
 from enum import Enum
 from dotenv import load_dotenv
-from agent.sql_gen import _call_llm
+from agent.sql_gen import _call_llm, _call_llm_async
 
 load_dotenv()
 
@@ -54,4 +54,28 @@ def classify(question: str, history: list = None) -> dict:
         return {"intent": intent, "confidence": confidence}
     except Exception:
         # 分类失败时默认 QUERY_DATA，不阻断流程
+        return {"intent": "QUERY_DATA", "confidence": 0.5}
+
+
+async def classify_async(question: str, history: list = None) -> dict:
+    history = history or []
+    messages = []
+    recent = history[-6:] if history else []
+    if recent:
+        history_text = "\n".join(f"{m['role']}: {m['content']}" for m in recent)
+        messages.append({"role": "user", "content": f"对话历史：\n{history_text}\n\n当前问题：{question}"})
+    else:
+        messages.append({"role": "user", "content": f"当前问题：{question}"})
+
+    try:
+        text = await _call_llm_async(INTENT_SYSTEM, messages)
+        if "{" in text:
+            text = text[text.index("{"):text.rindex("}") + 1]
+        result = json.loads(text)
+        intent_val = result.get("intent", "QUERY_DATA")
+        confidence = float(result.get("confidence", 0.8))
+        if intent_val not in [e.value for e in Intent]:
+            intent_val = "QUERY_DATA"
+        return {"intent": intent_val, "confidence": confidence}
+    except Exception:
         return {"intent": "QUERY_DATA", "confidence": 0.5}

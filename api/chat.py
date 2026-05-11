@@ -18,22 +18,21 @@ class ChatRequest(BaseModel):
 
 
 @router.post("/api/chat")
-def chat(req: ChatRequest):
-    result = pipeline.run(
+async def chat(req: ChatRequest):
+    return await pipeline.run(
         question=req.message,
         session_id=req.session_id,
         user_id=req.user_id,
     )
-    return result
 
 
 @router.get("/api/chat/history")
-def history(session_id: str):
+async def history(session_id: str):
     return session_store.get_history(session_id)
 
 
 @router.get("/api/chat/suggestions")
-def suggestions(count: int = 4):
+async def suggestions(count: int = 4):
     """返回随机推荐问题（从 schema sample_questions 抽取）"""
     all_questions = []
     if os.path.isdir(SCHEMA_DIR):

@@ -16,14 +16,16 @@ FALLBACK_SCHEMA = """
 """
 
 
-def run(question: str, session_id: str = "", user_id: str = "") -> dict:
+# ── 异步主流程 ────────────────────────────────────────────────────────────────
+
+async def run(question: str, session_id: str = "", user_id: str = "") -> dict:
     start = time.time()
 
     # 1. 获取对话历史
     history = session_store.get_history(session_id) if session_id else []
 
     # 2. 意图识别
-    intent_result = intent.classify(question, history)
+    intent_result = await intent.classify_async(question, history)
     intent_type = intent_result["intent"]
 
     # 3. 根据意图分支处理
@@ -33,7 +35,7 @@ def run(question: str, session_id: str = "", user_id: str = "") -> dict:
         return _make_response(answer, "", [], 0, "out_of_scope", session_id)
 
     if intent_type == "ASK_CONCEPT":
-        answer = sql_gen.explain_concept(question)
+        answer = await sql_gen.explain_concept_async(question)
         _save_and_log(session_id, user_id, question, "", "concept", 0, start, answer, intent_type)
         return _make_response(answer, "", [], 0, "concept", session_id)
 
@@ -42,7 +44,7 @@ def run(question: str, session_id: str = "", user_id: str = "") -> dict:
     # 4. 检索相关 schema（Milvus 优先，兜底全量）
     retrieved_tables = []
     try:
-        docs = retriever.retrieve(question, top_k=3)
+        docs = await retriever.retrieve_async(question, top_k=3)
         schema_context = "\n\n".join(d.full_text for d in docs)
         retrieved_tables = [d.table_name for d in docs]
     except Exception:
@@ -50,7 +52,7 @@ def run(question: str, session_id: str = "", user_id: str = "") -> dict:
 
     # 5. 构建 prompt 并生成 SQL
     system_msg, messages = prompt_builder.build_sql_prompt(question, schema_context, history)
-    sql = sql_gen.generate_sql_with_prompt(system_msg, messages)
+    sql = await sql_gen.generate_sql_with_prompt_async(system_msg, messages)
     if sql == "CANNOT_GENERATE":
         answer = "无法将该问题转化为数据查询，请换种方式提问。"
         _save_and_log(session_id, user_id, question, "", "cannot_generate", 0, start, answer, intent_type, retrieved_tables)
@@ -65,17 +67,17 @@ def run(question: str, session_id: str = "", user_id: str = "") -> dict:
     sql = sql_guard.add_limit(sql)
 
     # 7. 执行查询（失败时自动修复重试，最多 2 次）
-    result = executor.execute(sql)
+    result = await executor.execute_async(sql)
     if result["error"]:
         for attempt in range(2):
-            fixed_sql = sql_gen.repair_sql(question, sql, result["error"], schema_context)
+            fixed_sql = await sql_gen.repair_sql_async(question, sql, result["error"], schema_context)
             if fixed_sql == "CANNOT_REPAIR":
                 break
             guard = sql_guard.validate(fixed_sql)
             if not guard["valid"]:
                 break
             sql = sql_guard.add_limit(fixed_sql)
-            result = executor.execute(sql)
+            result = await executor.execute_async(sql)
             if not result["error"]:
                 break
         if result["error"]:
@@ -84,7 +86,7 @@ def run(question: str, session_id: str = "", user_id: str = "") -> dict:
             return _make_response(answer, sql, [], 0, "sql_error", session_id)
 
     # 8. 解释结果
-    answer = sql_gen.explain_result(question, sql, result["data"])
+    answer = await sql_gen.explain_result_async(question, sql, result["data"])
     _save_and_log(session_id, user_id, question, sql, "success", result["row_count"], start, answer, intent_type, retrieved_tables, "passed")
 
     return _make_response(answer, sql, result["data"], result["row_count"], "success", session_id)
