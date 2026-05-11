@@ -1,0 +1,59 @@
+service:
+  name: medical-data-agent
+  environment: pocket
+  fail_fast_on_missing_dependency: true
+
+executor:
+  type: duckdb
+
+duckdb:
+  database_path: data/medical_dw.db
+  read_only: false
+
+milvus:
+  mode: lite
+  uri: data/medical_metadata.db
+  collection: medical_metadata
+
+llm:
+  provider: openai-compatible
+  base_url: ${LLM_BASE_URL}
+  model: ${LLM_MODEL}
+  api_key: ${LLM_API_KEY}
+  timeout_seconds: 60
+
+embedding:
+  provider: openai-compatible
+  base_url: ${EMBEDDING_BASE_URL}
+  model: ${EMBEDDING_MODEL}
+  api_key: ${EMBEDDING_API_KEY}
+  dimension: ${EMBEDDING_DIMENSION}
+
+sql_guard:
+  dialect: duckdb
+  allow_statement_types:
+    - select
+  deny_keywords:
+    - drop
+    - delete
+    - update
+    - insert
+    - alter
+    - truncate
+  deny_select_star: true
+  require_limit_for_detail_query: true
+  allowed_schemas:
+    - dwd
+    - dim
+    - dws
+    - ads
+    - dq
+    - mpi
+    - mdm
+
+agent:
+  max_steps: 6
+
+audit:
+  enabled: false
+  sink: none

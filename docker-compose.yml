@@ -1,0 +1,220 @@
+version: "3.8"
+
+# ============================================================
+# Medical Data Agent — 全栈 Docker Compose
+#
+# 启动: docker-compose up -d
+# 停止: docker-compose down
+# 日志: docker-compose logs -f ai-data-agent
+# ============================================================
+
+services:
+  # ---- Milvus 依赖 ----
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.16-r0
+    environment:
+      ETCD_AUTO_COMPACTION_MODE: revision
+      ETCD_AUTO_COMPACTION_RETENTION: "1000"
+      ETCD_QUOTA_BACKEND_BYTES: "4294967296"
+      ETCD_SNAPSHOT_COUNT: "50000"
+    volumes:
+      - etcd_data:/etcd
+    command: >
+      etcd
+      --advertise-client-urls=http://127.0.0.1:2379
+      --listen-client-urls=http://0.0.0.0:2379
+      --data-dir=/etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  minio:
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    volumes:
+      - minio_data:/minio_data
+    command: minio server /minio_data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # ---- Milvus 向量数据库 ----
+  milvus:
+    image: milvusdb/milvus:v2.4.17
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    volumes:
+      - milvus_data:/var/lib/milvus
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    depends_on:
+      etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # ---- Doris FE ----
+  doris-fe:
+    image: apache/doris:2.1.7-fe
+    environment:
+      FE_SERVERS: fe1:127.0.0.1:9010
+      FE_ID: 1
+    ports:
+      - "8030:8030"
+      - "9030:9030"
+    volumes:
+      - doris_fe_data:/opt/apache-doris/fe/doris-meta
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8030/api/bootstrap"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  # ---- Doris BE ----
+  doris-be:
+    image: apache/doris:2.1.7-be
+    environment:
+      FE_SERVERS: fe1:doris-fe:9010
+      BE_ADDR: doris-be:9050
+    ports:
+      - "8040:8040"
+    volumes:
+      - doris_be_data:/opt/apache-doris/be/storage
+    depends_on:
+      doris-fe:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8040/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  # ---- 初始化：注册 BE 到 FE、建表 ----
+  doris-init:
+    image: mysql:8.0
+    depends_on:
+      doris-fe:
+        condition: service_healthy
+      doris-be:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        echo "等待 Doris FE 就绪..."
+        for i in $$(seq 1 30); do
+          mysql -h doris-fe -P 9030 -u root -e "SELECT 1" 2>/dev/null && break
+          sleep 2
+        done
+
+        echo "注册 BE 节点..."
+        mysql -h doris-fe -P 9030 -u root -e "ALTER SYSTEM ADD BACKEND IF NOT EXISTS 'doris-be:9050';" 2>/dev/null || true
+
+        echo "等待 BE 上线..."
+        for i in $$(seq 1 30); do
+          ALIVE=$$(mysql -h doris-fe -P 9030 -u root -N -e "SELECT COUNT(*) FROM information_schema.backends WHERE Alive='true';" 2>/dev/null || echo 0)
+          if [ "$$ALIVE" -ge "1" ]; then
+            echo "BE 已上线"
+            break
+          fi
+          sleep 2
+        done
+
+        echo "创建数据库和表..."
+        mysql -h doris-fe -P 9030 -u root <<'SQL'
+        CREATE DATABASE IF NOT EXISTS gmall;
+        CREATE DATABASE IF NOT EXISTS dq;
+
+        USE gmall;
+
+        CREATE TABLE IF NOT EXISTS dws_drug_usage_1d (
+            stat_date DATE COMMENT "统计日期",
+            dept_name VARCHAR(100) COMMENT "科室名称",
+            drug_name VARCHAR(200) COMMENT "药品名称",
+            usage_amount DECIMAL(18,4) COMMENT "使用量",
+            usage_cost DECIMAL(18,2) COMMENT "使用金额",
+            patient_count INT COMMENT "患者数"
+        ) ENGINE=OLAP
+        DUPLICATE KEY(stat_date, dept_name, drug_name)
+        DISTRIBUTED BY HASH(stat_date) BUCKETS 4
+        PROPERTIES("replication_num" = "1");
+
+        USE dq;
+
+        CREATE TABLE IF NOT EXISTS ai_data_agent_audit_log (
+            request_id VARCHAR(64) COMMENT "请求ID",
+            question VARCHAR(1000) COMMENT "用户问题",
+            sql_text TEXT COMMENT "生成的SQL",
+            status VARCHAR(32) COMMENT "执行状态",
+            retrieved_sources INT COMMENT "检索源数量",
+            context_tables VARCHAR(500) COMMENT "上下文表",
+            context_metrics VARCHAR(500) COMMENT "上下文指标",
+            context_dq_rules VARCHAR(500) COMMENT "DQ规则",
+            row_count INT COMMENT "返回行数",
+            elapsed_ms INT COMMENT "耗时毫秒",
+            error_message VARCHAR(1000) COMMENT "错误信息",
+            answer_summary TEXT COMMENT "答案摘要",
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT "创建时间"
+        ) ENGINE=OLAP
+        DUPLICATE KEY(request_id)
+        DISTRIBUTED BY HASH(request_id) BUCKETS 2
+        PROPERTIES("replication_num" = "1");
+        SQL
+
+        echo "Doris 初始化完成"
+
+  # ---- ai-data-agent 主服务 ----
+  ai-data-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      AI_DATA_AGENT_CONFIG: config/application.local.yaml
+      AI_DATA_AGENT_METADATA_ROOT: metadata
+      # 覆盖 .env 中的值（优先级高于 .env 文件）
+      DORIS_HOST: doris-fe
+      DORIS_PORT: "9030"
+      DORIS_USER: root
+      DORIS_PASSWORD: ""
+      DORIS_DATABASE: gmall
+      MILVUS_HOST: milvus
+      MILVUS_PORT: "19530"
+      MILVUS_COLLECTION: medical_metadata
+      LLM_PROVIDER: openai
+      LLM_BASE_URL: https://dashscope.aliyuncs.com/compatible-mode/v1
+      LLM_MODEL: qwen-plus
+      LLM_API_KEY: ${LLM_API_KEY}
+      EMBEDDING_PROVIDER: openai
+      EMBEDDING_BASE_URL: https://dashscope.aliyuncs.com/compatible-mode/v1
+      EMBEDDING_MODEL: text-embedding-v3
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY}
+      EMBEDDING_DIMENSION: "1024"
+    depends_on:
+      milvus:
+        condition: service_healthy
+      doris-fe:
+        condition: service_healthy
+    restart: on-failure
+
+volumes:
+  etcd_data:
+  minio_data:
+  milvus_data:
+  doris_fe_data:
+  doris_be_data:

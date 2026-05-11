@@ -1,0 +1,41 @@
+version: "0.1"
+description: "评测集中需要稳定解析的核心指标。"
+metrics:
+  inpatient_visit_count:
+    required_tables:
+      - dwd.dwd_visit
+    required_filters:
+      - "visit_type = '住院'"
+
+  lung_cancer_patient_count:
+    required_tables:
+      - dwd.dwd_diagnosis
+    required_filters:
+      - "diagnosis_code LIKE 'C34%'"
+
+  antitumor_drug_amount:
+    required_tables:
+      - dws.dws_tumor_drug_usage_1d
+      - dim.dim_drug_dict
+    required_filters:
+      - "drug_category = 'ANTITUMOR'"
+
+  department_expense_mom_growth_rate:
+    required_tables:
+      - dws.dws_expense_summary_1d
+    required_dimensions:
+      - dept_code
+
+  dq_issue_count:
+    required_tables:
+      - ads.ads_dq_result_summary
+    required_dimensions:
+      - rule_code
+      - severity
+
+  mpi_coverage_rate:
+    required_tables:
+      - dws.dws_mpi_quality_1d
+    required_fields:
+      - mpi_mapped_count
+      - total_record_count

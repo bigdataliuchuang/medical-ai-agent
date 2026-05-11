@@ -1,0 +1,44 @@
+version: "0.1"
+description: "第一批 ODS-DWD-DWS-ADS 血缘图，用于 GraphRAG 血缘扩展和影响分析。"
+lineages:
+  - id: diagnosis_to_tumor_report
+    description: "诊断源表到抗肿瘤上报链路。"
+    path:
+      - ods.ods_diag_info
+      - dwd.dwd_diagnosis
+      - dws.dws_patient_visit_1d
+      - ads.ads_tumor_report_monthly
+
+  - id: inpatient_order_to_drug_usage
+    description: "住院医嘱到抗肿瘤药物使用趋势链路。"
+    path:
+      - ods.ods_inpatient_order
+      - dwd.dwd_order
+      - dws.dws_tumor_drug_usage_1d
+      - ads.ads_drug_usage_trend
+
+  - id: expense_to_tumor_expense
+    description: "费用明细到分瘤种费用分析链路。"
+    path:
+      - ods.ods_inpatient_expense_record
+      - dwd.dwd_expense
+      - dws.dws_expense_summary_1d
+      - ads.ads_expense_by_tumor_type
+
+  - id: dq_to_quality_dashboard
+    description: "DQ 检查到质量看板链路。"
+    path:
+      - sql/medical/dq/check
+      - dq.dq_check_result
+      - dq.dq_issue_detail
+      - ads.ads_dq_result_summary
+      - datart.dashboard_dq_monitor
+
+  - id: mpi_to_patient_summary
+    description: "MPI 主索引治理到患者 MPI 质量报表链路。"
+    path:
+      - mpi.mpi_patient_master
+      - mpi.mpi_patient_source_map
+      - dwd.dwd_patient
+      - dws.dws_mpi_quality_1d
+      - ads.ads_patient_mpi_summary

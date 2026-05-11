@@ -1,0 +1,20 @@
+name: ai-data-agent
+channels:
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - setuptools<81
+  - pip:
+      - fastapi>=0.115.0
+      - duckdb>=1.1.0
+      - pydantic>=2.8.0
+      - pymilvus[milvus-lite]>=2.4.0
+      - pymysql>=1.1.0
+      - python-dotenv>=1.0.0
+      - pytz>=2024.1
+      - pyyaml>=6.0.0
+      - httpx>=0.28.0
+      - pytest>=8.0.0
+      - sqlglot>=25.0.0
+      - uvicorn>=0.30.0

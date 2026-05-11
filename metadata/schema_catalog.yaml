@@ -1,0 +1,576 @@
+version: "0.2"
+description: "医疗数据治理 Data Agent 表结构元数据，覆盖全部 DWD/DIM/DWS/ADS/DQ 层表，来源于 sql/medical/doris/ 和治理文档。"
+tables:
+  - name: dwd.dwd_patient
+    layer: DWD
+    domain: patient
+    description: "患者清洗明细表，承载来源患者 ID、MPI 主索引和患者基础属性。"
+    source_paths:
+      - sql/medical/doris/dwd/dwd_patient.sql
+      - docs/medical-governance/table_inventory.md
+    key_fields:
+      - patient_id
+      - mpi_id
+    fields:
+      - name: patient_id
+        description: "来源患者 ID，用于与源系统和 MPI 映射关联。"
+      - name: mpi_id
+        description: "患者主索引 ID，用于跨系统统一患者身份。"
+
+  - name: dwd.dwd_visit
+    layer: DWD
+    domain: visit
+    description: "就诊清洗明细表，统一门诊和住院就诊记录，是诊断、医嘱、费用分析的核心事实表。"
+    source_paths:
+      - sql/medical/doris/dwd/dwd_visit.sql
+      - docs/medical-governance/table_inventory.md
+    key_fields:
+      - visit_id
+      - patient_id
+      - mpi_id
+    fields:
+      - name: visit_id
+        description: "统一就诊 ID，用于数仓内部 Join。"
+      - name: visit_sn
+        description: "来源就诊流水号，用于源系统追溯。"
+      - name: visit_type
+        description: "就诊类型，区分门诊和住院。"
+      - name: dept_code
+        description: "科室编码。"
+      - name: dept_name
+        description: "科室名称。"
+
+  - name: dwd.dwd_diagnosis
+    layer: DWD
+    domain: diagnosis
+    description: "诊断清洗明细表，承载 ICD-10 编码和主次诊断信息。"
+    source_paths:
+      - sql/medical/doris/dwd/dwd_diagnosis.sql
+      - docs/medical-governance/table_inventory.md
+    key_fields:
+      - visit_id
+      - patient_id
+      - diagnosis_code
+    fields:
+      - name: diagnosis_code
+        description: "诊断编码，肿瘤筛选主要使用 ICD-10 C00-D09 或具体瘤种编码。"
+      - name: diagnosis_name
+        description: "诊断名称。"
+      - name: diagnosis_type
+        description: "诊断类型，区分主诊断、次诊断、入院诊断、出院诊断。"
+
+  - name: dwd.dwd_order
+    layer: DWD
+    domain: order
+    description: "医嘱/处方清洗明细表，承载药品、用量、费用和医嘱执行信息。"
+    source_paths:
+      - sql/medical/doris/dwd/dwd_order.sql
+      - docs/medical-governance/table_inventory.md
+    key_fields:
+      - visit_id
+      - patient_id
+      - drug_code
+    fields:
+      - name: drug_code
+        description: "药品编码，用于关联药品维表和抗肿瘤药物目录。"
+      - name: order_amount
+        description: "医嘱金额或药品费用金额。"
+      - name: order_time
+        description: "医嘱时间。"
+
+  - name: dwd.dwd_expense
+    layer: DWD
+    domain: expense
+    description: "费用清洗明细表，承载住院和门诊费用流水。"
+    source_paths:
+      - sql/medical/doris/dwd/dwd_expense.sql
+      - docs/medical-governance/table_inventory.md
+    key_fields:
+      - visit_id
+      - patient_id
+    fields:
+      - name: expense_amount
+        description: "费用金额。"
+      - name: expense_category
+        description: "费用分类，如药费、检查费、手术费、床位费。"
+      - name: charge_date
+        description: "收费日期。"
+
+  - name: dim.dim_drug_dict
+    layer: DIM
+    domain: drug
+    description: "药品维表，维护药品编码、名称、分类和抗肿瘤药物标识。"
+    source_paths:
+      - sql/medical/doris/dim/dim_drug_dict.sql
+      - docs/medical-governance/interview/interview_qa.md
+    key_fields:
+      - drug_code
+    fields:
+      - name: drug_code
+        description: "药品编码。"
+      - name: drug_category
+        description: "药品分类，抗肿瘤药物分析使用 ANTITUMOR 或同义标识。"
+
+  - name: dim.dim_dept_dict
+    layer: DIM
+    domain: department
+    description: "科室维表，维护科室编码和科室名称。"
+    source_paths:
+      - sql/medical/doris/dim/dim_dept_dict.sql
+    key_fields:
+      - dept_code
+    fields:
+      - name: dept_code
+        description: "科室编码。"
+      - name: dept_name
+        description: "科室名称。"
+
+  - name: dws.dws_tumor_drug_usage_1d
+    layer: DWS
+    domain: drug
+    description: "肿瘤药物使用日汇总，服务抗肿瘤药物使用金额、人次、剂量和科室分布分析。"
+    source_paths:
+      - sql/medical/doris/dws/dws_tumor_drug_usage_1d.sql
+      - docs/medical-governance/table_inventory.md
+    key_fields:
+      - stat_date
+      - drug_code
+    fields:
+      - name: stat_date
+        description: "统计日期。"
+      - name: dept_code
+        description: "使用科室编码。"
+      - name: dept_name
+        description: "使用科室名称，按科室展示时优先使用。"
+      - name: drug_code
+        description: "药品编码。"
+      - name: drug_name
+        description: "药品名称。"
+      - name: drug_category
+        description: "药品分类，抗肿瘤药物使用 ANTITUMOR。"
+      - name: drug_amount
+        description: "口袋版本地样例中的抗肿瘤药物金额，等价于药品费用合计。"
+      - name: drug_expense_total
+        description: "药品费用合计。"
+
+  - name: ads.ads_drug_usage_trend
+    layer: ADS
+    domain: drug
+    description: "药物使用趋势报表，支持抗肿瘤药物月度用量趋势和科室分布看板。"
+    source_paths:
+      - sql/medical/doris/ads/ads_drug_usage_trend.sql
+      - datart/medical/dashboard_drug_pharmacy.json
+
+  - name: ads.ads_dq_result_summary
+    layer: ADS
+    domain: dq
+    description: "数据质量汇总报表，支持 DQ 通过率、异常分布和质量评分分析。"
+    source_paths:
+      - sql/medical/doris/ads/ads_dq_result_summary.sql
+      - datart/medical/dashboard_dq_monitor.json
+    fields:
+      - name: stat_date
+        description: "统计日期。"
+      - name: table_name
+        description: "被检测表名。"
+      - name: severity
+        description: "最高问题严重等级。"
+      - name: issue_count
+        description: "口袋版本地样例中的 DQ 问题数量。"
+      - name: fail_rule_detail_json
+        description: "失败规则明细。"
+
+  - name: dq.dq_check_result
+    layer: DQ
+    domain: dq
+    description: "数据质量规则执行结果明细，记录每条规则的通过/失败状态和问题数量。"
+    source_paths:
+      - sql/medical/dq/result/dq_check_result.sql
+      - ai-data-agent/scripts/init_pocket_duckdb.py
+    key_fields:
+      - rule_code
+    fields:
+      - name: rule_code
+        description: "DQ 规则编码。"
+      - name: rule_name
+        description: "DQ 规则名称。"
+      - name: check_status
+        description: "检查状态，passed 或 failed。"
+      - name: issue_count
+        description: "问题记录数量。"
+      - name: check_time
+        description: "检查时间。"
+
+  - name: dq.dq_issue_detail
+    layer: DQ
+    domain: dq
+    description: "数据质量问题明细，记录 DQ 失败规则命中的业务记录。"
+    source_paths:
+      - sql/medical/dq/result/dq_issue_detail.sql
+      - ai-data-agent/scripts/init_pocket_duckdb.py
+    key_fields:
+      - rule_code
+    fields:
+      - name: rule_code
+        description: "DQ 规则编码。"
+      - name: dept_code
+        description: "异常记录中的科室编码。"
+      - name: dept_name
+        description: "异常记录中的科室名称。"
+      - name: drug_code
+        description: "异常记录中的药品编码。"
+      - name: drug_name
+        description: "异常记录中的药品名称。"
+      - name: issue_reason
+        description: "问题原因说明。"
+
+  - name: dws.dws_lab_abnormal_1d
+    layer: DWS
+    domain: lab
+    description: "检验异常日汇总宽表，支持肿瘤标志物异常、危急值和检验质量分析。"
+    source_paths:
+      - sql/medical/doris/dws/dws_lab_abnormal_1d.sql
+      - ai-data-agent/scripts/init_pocket_duckdb.py
+    key_fields:
+      - stat_date
+      - test_item_code
+    fields:
+      - name: stat_date
+        description: "统计日期。"
+      - name: test_item_code
+        description: "检验项目编码。"
+      - name: test_item_name
+        description: "检验项目名称。"
+      - name: dept_code
+        description: "申请科室编码。"
+      - name: dept_name
+        description: "申请科室名称。"
+      - name: test_total_cnt
+        description: "检验总例数。"
+      - name: high_value_cnt
+        description: "高值异常例数。"
+      - name: low_value_cnt
+        description: "低值异常例数。"
+      - name: critical_value_cnt
+        description: "危急值例数。"
+
+  - name: ads.ads_inpatient_quality_board
+    layer: ADS
+    domain: quality
+    description: "住院质量指标看板表，支持平均住院天数、长期住院率和危急值处置及时率分析。"
+    source_paths:
+      - sql/medical/doris/ads/ads_inpatient_quality_board.sql
+      - ai-data-agent/scripts/init_pocket_duckdb.py
+    key_fields:
+      - stat_date
+      - dept_code
+    fields:
+      - name: stat_date
+        description: "统计日期。"
+      - name: dept_code
+        description: "科室编码。"
+      - name: dept_name
+        description: "科室名称。"
+      - name: inpatient_discharge_cnt
+        description: "出院人次。"
+      - name: avg_inpatient_days
+        description: "平均住院天数。"
+      - name: long_stay_rate
+        description: "长期住院率。"
+      - name: critical_timely_rate
+        description: "危急值30分钟内处置及时率。"
+
+  # ── 补充 DWD 表 ─────────────────────────────────────────────────────────────
+
+  - name: dwd.dwd_inpatient
+    layer: DWD
+    domain: inpatient
+    description: "住院标准明细表，整合住院患者信息、病案首页、入院/出院记录，构建住院域统一视图。"
+    source_paths:
+      - sql/medical/doris/dwd/dwd_inpatient.sql
+    key_fields:
+      - inpatient_event_id
+      - visit_id
+      - patient_id
+    fields:
+      - name: inpatient_event_id
+        description: "住院事件ID，DWD层唯一标识。"
+      - name: visit_sn
+        description: "就诊编号/住院号。"
+      - name: admission_datetime
+        description: "入院时间。"
+      - name: discharge_datetime
+        description: "出院时间。"
+      - name: inpatient_days
+        description: "住院天数。"
+      - name: discharge_status
+        description: "出院状态：1-治愈，2-好转，3-未愈，4-死亡。"
+      - name: main_diagnosis_code
+        description: "主诊断编码（ICD-10）。"
+      - name: tumor_stage
+        description: "肿瘤分期（TNM）。"
+      - name: total_cost
+        description: "住院总费用（元）。"
+
+  - name: dwd.dwd_outpatient
+    layer: DWD
+    domain: outpatient
+    description: "门诊标准明细表，整合门诊患者信息和门诊病历，构建门诊域统一视图。"
+    source_paths:
+      - sql/medical/doris/dwd/dwd_outpatient.sql
+    key_fields:
+      - outpatient_event_id
+      - visit_id
+      - patient_id
+    fields:
+      - name: outpatient_event_id
+        description: "门诊事件ID，DWD层唯一标识。"
+      - name: visit_sn
+        description: "就诊编号/门诊号。"
+      - name: visit_datetime
+        description: "就诊时间。"
+      - name: diagnosis_code
+        description: "诊断编码（ICD-10）。"
+      - name: total_cost
+        description: "门诊总费用。"
+
+  - name: dwd.dwd_exam
+    layer: DWD
+    domain: exam
+    description: "检查明细表，统一常规检查、病理检查、分子病理检测，构建检查域统一视图。"
+    source_paths:
+      - sql/medical/doris/dwd/dwd_exam.sql
+    key_fields:
+      - exam_event_id
+      - visit_id
+      - patient_id
+    fields:
+      - name: exam_event_id
+        description: "检查事件ID，DWD层唯一标识。"
+      - name: exam_type
+        description: "检查类型：ROUTINE-常规检查/PATHOLOGY-病理/MOLECULAR-分子病理。"
+      - name: exam_item_code
+        description: "检查项目编码。"
+      - name: exam_result
+        description: "检查结果。"
+      - name: positive_flag
+        description: "阳性标志：阳性/阴性。"
+      - name: report_datetime
+        description: "报告日期时间。"
+
+  - name: dwd.dwd_lab
+    layer: DWD
+    domain: lab
+    description: "检验明细表，统一常规检验和微生物检验，构建检验域统一视图。"
+    source_paths:
+      - sql/medical/doris/dwd/dwd_lab.sql
+    key_fields:
+      - lab_event_id
+      - visit_id
+      - patient_id
+    fields:
+      - name: lab_event_id
+        description: "检验事件ID，DWD层唯一标识。"
+      - name: lab_type
+        description: "检验类型：ROUTINE-常规检验/MICROBIOLOGY-微生物检验。"
+      - name: lab_item_code
+        description: "检验项目编码。"
+      - name: result_value
+        description: "结果值。"
+      - name: abnormal_flag
+        description: "异常标志：H-偏高，L-偏低，N-正常。"
+      - name: report_time
+        description: "报告时间。"
+
+  - name: dwd.dwd_operation
+    layer: DWD
+    domain: operation
+    description: "手术明细表，整合住院手术记录，构建手术域标准明细。"
+    source_paths:
+      - sql/medical/doris/dwd/dwd_operation.sql
+    key_fields:
+      - operation_event_id
+      - visit_id
+      - patient_id
+    fields:
+      - name: operation_event_id
+        description: "手术事件ID，DWD层唯一标识。"
+      - name: operation_code
+        description: "手术/操作编码（ICD-9-CM-3）。"
+      - name: operation_name
+        description: "手术/操作名称。"
+      - name: operation_level
+        description: "手术级别：1-一级，2-二级，3-三级，4-四级。"
+      - name: operation_datetime
+        description: "手术日期时间。"
+      - name: anesthesia_method
+        description: "麻醉方式。"
+
+  - name: dwd.dwd_settlement
+    layer: DWD
+    domain: expense
+    description: "费用结算明细表，统一住院结算和门诊结算，构建费用结算统一视图。"
+    source_paths:
+      - sql/medical/doris/dwd/dwd_settlement.sql
+    key_fields:
+      - settlement_event_id
+      - visit_id
+      - patient_id
+    fields:
+      - name: settlement_event_id
+        description: "结算事件ID，DWD层唯一标识。"
+      - name: visit_type
+        description: "就诊类型：1-门诊，2-住院。"
+      - name: total_fee
+        description: "总费用（元）。"
+      - name: insurance_type
+        description: "医保类型。"
+      - name: insurance_pay
+        description: "医保报销金额。"
+      - name: self_pay
+        description: "自费金额。"
+
+  - name: dwd.dwd_drug_purchase
+    layer: DWD
+    domain: drug
+    description: "抗肿瘤药物采购明细表，整合抗肿瘤药物采购数据，构建药品采购域标准明细。"
+    source_paths:
+      - sql/medical/doris/dwd/dwd_drug_purchase.sql
+    key_fields:
+      - purchase_event_id
+      - drug_code
+    fields:
+      - name: purchase_event_id
+        description: "采购事件ID，DWD层唯一标识。"
+      - name: drug_code
+        description: "药品编码。"
+      - name: drug_category
+        description: "药品分类：化疗药/靶向药/免疫治疗药/内分泌治疗药。"
+      - name: antitumor_drug_flag
+        description: "抗肿瘤药物标志：Y-是。"
+      - name: purchase_total_amount
+        description: "采购总金额（元）。"
+      - name: supplier_name
+        description: "供应商名称。"
+
+  - name: dwd.dwd_emr_document
+    layer: DWD
+    domain: emr
+    description: "电子病历文书明细表，统一入院记录、病程记录、出院记录、护理记录、门诊病历等文书。"
+    source_paths:
+      - sql/medical/doris/dwd/dwd_emr_document.sql
+    key_fields:
+      - document_event_id
+      - visit_id
+      - patient_id
+    fields:
+      - name: document_event_id
+        description: "文书事件ID，DWD层唯一标识。"
+      - name: document_type
+        description: "文书类型：ADMISSION-入院记录/PROGRESS-病程记录/DISCHARGE-出院记录/NURSING-护理记录/OUTPATIENT-门诊病历。"
+      - name: document_content
+        description: "文书内容。"
+      - name: dept_name
+        description: "科室。"
+
+  - name: dwd.dwd_radiotherapy
+    layer: DWD
+    domain: radiotherapy
+    description: "放疗明细表，整合临床放疗记录，构建放疗域标准明细。"
+    source_paths:
+      - sql/medical/doris/dwd/dwd_radiotherapy.sql
+    key_fields:
+      - radiotherapy_event_id
+      - visit_id
+      - patient_id
+    fields:
+      - name: radiotherapy_event_id
+        description: "放疗事件ID，DWD层唯一标识。"
+      - name: radiotherapy_type
+        description: "放疗类型：根治性/姑息性/辅助性/新辅助性。"
+      - name: radiotherapy_method
+        description: "放疗方法：三维适形/调强/立体定向/质子重离子。"
+      - name: total_dose
+        description: "总剂量（Gy）。"
+      - name: fraction_count
+        description: "分次次数。"
+
+  # ── 补充 DWS 表 ─────────────────────────────────────────────────────────────
+
+  - name: dws.dws_patient_visit_1d
+    layer: DWS
+    domain: visit
+    description: "患者就诊日汇总宽表，按患者 MPI_ID 和统计日期聚合就诊行为指标，服务患者就诊频次分析、费用汇总和复诊率计算。"
+    source_paths:
+      - sql/medical/doris/dws/dws_patient_visit_1d.sql
+    key_fields:
+      - stat_date
+      - mpi_id
+    fields:
+      - name: stat_date
+        description: "统计日期。"
+      - name: mpi_id
+        description: "患者主索引ID。"
+      - name: tumor_type
+        description: "主要肿瘤类型（ICD-10分类）。"
+      - name: visit_cnt_total
+        description: "当日就诊总次数（住院+门诊）。"
+      - name: expense_total
+        description: "当日累计医疗费用（元）。"
+      - name: drug_expense
+        description: "当日药品费用合计（元）。"
+      - name: inpatient_days_total
+        description: "当日新增住院天数。"
+
+  - name: dws.dws_expense_summary_1d
+    layer: DWS
+    domain: expense
+    description: "科室费用日汇总宽表，按科室和统计日期聚合医疗费用指标，服务科室费用管控、药占比监控和 DRG 费用分析。"
+    source_paths:
+      - sql/medical/doris/dws/dws_expense_summary_1d.sql
+    key_fields:
+      - stat_date
+      - dept_code
+    fields:
+      - name: stat_date
+        description: "统计日期。"
+      - name: dept_code
+        description: "科室编码。"
+      - name: dept_name
+        description: "科室名称。"
+      - name: expense_total
+        description: "费用总计（元）。"
+      - name: drug_expense
+        description: "药品费用（元）。"
+      - name: antitumor_drug_expense
+        description: "抗肿瘤药品费用（元）。"
+      - name: avg_expense_per_visit
+        description: "次均费用（元）。"
+      - name: avg_inpatient_days
+        description: "平均住院天数。"
+
+  - name: dws.dws_mpi_quality_1d
+    layer: DWS
+    domain: mpi
+    description: "MPI质量日汇总宽表，按统计日期汇总患者主索引数据质量指标，服务 MPI 运营质量监控和患者去重率追踪。"
+    source_paths:
+      - sql/medical/doris/dws/dws_mpi_quality_1d.sql
+    key_fields:
+      - stat_date
+    fields:
+      - name: stat_date
+        description: "统计日期。"
+      - name: total_mpi_cnt
+        description: "MPI主索引总数（累计不重复患者数）。"
+      - name: new_mpi_cnt
+        description: "当日新增MPI数。"
+      - name: exact_match_cnt
+        description: "精确匹配数。"
+      - name: fuzzy_match_cnt
+        description: "模糊匹配数。"
+      - name: unmatched_cnt
+        description: "未匹配数（需人工审核）。"
+      - name: merge_op_cnt
+        description: "当日合并操作数。"
+      - name: covered_patient_cnt
+        description: "已建立MPI的患者总数。"

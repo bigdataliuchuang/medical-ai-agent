@@ -1,0 +1,60 @@
+service:
+  name: medical-data-agent
+  environment: local
+  fail_fast_on_missing_dependency: true
+
+doris:
+  host: ${DORIS_HOST}
+  port: ${DORIS_PORT}
+  user: ${DORIS_USER}
+  password: ${DORIS_PASSWORD}
+  database: ${DORIS_DATABASE}
+  connect_timeout_seconds: 5
+  query_timeout_seconds: 60
+
+milvus:
+  host: ${MILVUS_HOST}
+  port: ${MILVUS_PORT}
+  collection: ${MILVUS_COLLECTION}
+  connect_timeout_seconds: 5
+
+llm:
+  provider: ${LLM_PROVIDER}
+  base_url: ${LLM_BASE_URL}
+  model: ${LLM_MODEL}
+  api_key: ${LLM_API_KEY}
+  timeout_seconds: 60
+
+embedding:
+  provider: ${EMBEDDING_PROVIDER}
+  base_url: ${EMBEDDING_BASE_URL}
+  model: ${EMBEDDING_MODEL}
+  api_key: ${EMBEDDING_API_KEY}
+  dimension: ${EMBEDDING_DIMENSION}
+
+sql_guard:
+  dialect: doris
+  allow_statement_types:
+    - select
+  deny_keywords:
+    - drop
+    - delete
+    - update
+    - insert
+    - alter
+    - truncate
+  deny_select_star: true
+  require_limit_for_detail_query: true
+  allowed_schemas:
+    - dwd
+    - dim
+    - dws
+    - ads
+    - dq
+    - mpi
+    - mdm
+
+audit:
+  enabled: true
+  sink: doris
+  table: dq.ai_data_agent_audit_log

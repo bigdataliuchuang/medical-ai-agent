@@ -1,0 +1,57 @@
+[project]
+name = "medical-data-agent"
+version = "0.1.0"
+description = "Production medical data governance Data Agent"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0,<1.0",
+    "duckdb>=1.1.0,<2.0",
+    "pydantic>=2.8.0,<3.0",
+    "pymilvus[milvus-lite]>=2.4.0,<3.0",
+    "pymysql>=1.1.0,<2.0",
+    "python-dotenv>=1.0.0,<2.0",
+    "pytz>=2024.1,<2026",
+    "pyyaml>=6.0.0,<7.0",
+    "sqlglot>=25.0.0,<27.0",
+    "uvicorn>=0.30.0,<1.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "httpx>=0.28.0,<1.0",
+    "pytest>=8.0.0,<9.0",
+    "pytest-asyncio>=0.23.0,<1.0",
+]
+dev = [
+    "ruff>=0.4.0,<1.0",
+    "mypy>=1.10.0,<2.0",
+    "types-PyYAML>=6.0.0,<7.0",
+    "types-pymysql>=1.1.0,<2.0",
+]
+
+[project.scripts]
+ai-data-agent = "ai_data_agent.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["ai_data_agent"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+ignore_missing_imports = true
+disallow_untyped_defs = true
+warn_return_any = true
+warn_unused_ignores = true
+exclude = ["tests/"]

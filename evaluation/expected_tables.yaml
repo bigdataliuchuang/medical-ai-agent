@@ -1,0 +1,39 @@
+version: "0.1"
+description: "评测集中允许和期望召回的核心表。"
+allowed_schemas:
+  - dwd
+  - dim
+  - dws
+  - ads
+  - dq
+  - mpi
+  - mdm
+
+core_tables:
+  patient:
+    - dwd.dwd_patient
+    - mpi.mpi_patient_master
+    - mpi.mpi_patient_source_map
+  visit:
+    - dwd.dwd_visit
+    - mdm.mdm_visit_master
+    - mdm.mdm_visit_source_map
+  diagnosis:
+    - dwd.dwd_diagnosis
+    - dim.dim_diagnosis_dict
+  drug:
+    - dwd.dwd_order
+    - dim.dim_drug_dict
+    - dws.dws_tumor_drug_usage_1d
+    - ads.ads_drug_usage_trend
+  expense:
+    - dwd.dwd_expense
+    - dws.dws_expense_summary_1d
+    - ads.ads_expense_by_tumor_type
+  dq:
+    - dq.dq_check_result
+    - dq.dq_issue_detail
+    - ads.ads_dq_result_summary
+  mpi:
+    - dws.dws_mpi_quality_1d
+    - ads.ads_patient_mpi_summary

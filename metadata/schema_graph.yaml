@@ -1,0 +1,73 @@
+version: "0.1"
+description: "第一批医疗数仓 Schema Graph，用于 GraphRAG Join 路径扩展。"
+nodes:
+  - id: dwd.dwd_patient
+    type: table
+    domain: patient
+  - id: dwd.dwd_visit
+    type: table
+    domain: visit
+  - id: dwd.dwd_diagnosis
+    type: table
+    domain: diagnosis
+  - id: dwd.dwd_order
+    type: table
+    domain: order
+  - id: dwd.dwd_expense
+    type: table
+    domain: expense
+  - id: dim.dim_drug_dict
+    type: table
+    domain: drug
+  - id: dim.dim_dept_dict
+    type: table
+    domain: department
+  - id: dws.dws_tumor_drug_usage_1d
+    type: table
+    domain: drug
+  - id: ads.ads_drug_usage_trend
+    type: table
+    domain: drug
+
+edges:
+  - from: dwd.dwd_patient
+    to: dwd.dwd_visit
+    type: join
+    on: "dwd.dwd_patient.mpi_id = dwd.dwd_visit.mpi_id"
+    description: "患者主索引到就诊记录。"
+
+  - from: dwd.dwd_visit
+    to: dwd.dwd_diagnosis
+    type: join
+    on: "dwd.dwd_visit.visit_id = dwd.dwd_diagnosis.visit_id"
+    description: "就诊记录关联诊断明细。"
+
+  - from: dwd.dwd_visit
+    to: dwd.dwd_order
+    type: join
+    on: "dwd.dwd_visit.visit_id = dwd.dwd_order.visit_id"
+    description: "就诊记录关联医嘱/处方明细。"
+
+  - from: dwd.dwd_order
+    to: dim.dim_drug_dict
+    type: join
+    on: "dwd.dwd_order.drug_code = dim.dim_drug_dict.drug_code"
+    description: "医嘱药品编码关联药品维表，用于识别抗肿瘤药物。"
+
+  - from: dwd.dwd_visit
+    to: dim.dim_dept_dict
+    type: join
+    on: "dwd.dwd_visit.dept_code = dim.dim_dept_dict.dept_code"
+    description: "就诊记录关联科室维表。"
+
+  - from: dwd.dwd_visit
+    to: dwd.dwd_expense
+    type: join
+    on: "dwd.dwd_visit.visit_id = dwd.dwd_expense.visit_id"
+    description: "就诊记录关联费用明细。"
+
+  - from: dws.dws_tumor_drug_usage_1d
+    to: ads.ads_drug_usage_trend
+    type: lineage
+    on: "dws.dws_tumor_drug_usage_1d -> ads.ads_drug_usage_trend"
+    description: "肿瘤药物使用日汇总派生药物使用趋势报表。"

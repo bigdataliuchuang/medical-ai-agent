@@ -1,0 +1,100 @@
+version: "0.1"
+description: "第一批医疗数据治理智能分析指标口径。"
+metrics:
+  - name: inpatient_visit_count
+    display_name: "住院人次"
+    description: "指定时间范围内住院就诊记录数。"
+    source_table: dwd.dwd_visit
+    formula: "COUNT(DISTINCT visit_id)"
+    time_field: admit_time
+    dimensions:
+      - dept_code
+      - dept_name
+      - stat_month
+    filters:
+      - "visit_type = '住院'"
+
+  - name: lung_cancer_patient_count
+    display_name: "肺癌患者数"
+    description: "诊断编码匹配肺癌 ICD-10 C34 的患者数，按 mpi_id 去重。"
+    source_table: dwd.dwd_diagnosis
+    formula: "COUNT(DISTINCT mpi_id)"
+    time_field: diagnosis_time
+    dimensions:
+      - dept_code
+      - stat_month
+    filters:
+      - "diagnosis_code LIKE 'C34%'"
+
+  - name: antitumor_drug_amount
+    display_name: "抗肿瘤药物使用金额"
+    description: "抗肿瘤药物医嘱或费用金额合计。"
+    source_table: dws.dws_tumor_drug_usage_1d
+    formula: "SUM(drug_amount)"
+    time_field: stat_date
+    dimensions:
+      - dept_code
+      - dept_name
+      - drug_code
+      - drug_name
+      - stat_date
+      - stat_month
+    filters:
+      - "drug_category = 'ANTITUMOR'"
+
+  - name: department_expense_mom_growth_rate
+    display_name: "科室费用环比增长率"
+    description: "科室本期费用相较上一期费用的增长比例。"
+    source_table: dws.dws_expense_summary_1d
+    formula: "(current_period_amount - previous_period_amount) / NULLIF(previous_period_amount, 0)"
+    time_field: stat_date
+    dimensions:
+      - dept_code
+      - dept_name
+      - stat_month
+
+  - name: dq_issue_count
+    display_name: "DQ 问题数"
+    description: "数据质量检查发现的问题数量。"
+    source_table: ads.ads_dq_result_summary
+    formula: "SUM(issue_count)"
+    time_field: stat_date
+    dimensions:
+      - rule_code
+      - layer
+      - table_name
+      - severity
+
+  - name: mpi_coverage_rate
+    display_name: "MPI 覆盖率"
+    description: "DWD 患者或业务记录成功关联 mpi_id 的比例。"
+    source_table: dws.dws_mpi_quality_1d
+    formula: "SUM(mpi_mapped_count) / NULLIF(SUM(total_record_count), 0)"
+    time_field: stat_date
+    dimensions:
+      - stat_date
+      - source_system
+
+  - name: lab_abnormal_count
+    display_name: "检验异常数量"
+    description: "检验结果高值、低值和危急值异常数量合计。"
+    source_table: dws.dws_lab_abnormal_1d
+    formula: "SUM(high_value_cnt + low_value_cnt + critical_value_cnt)"
+    time_field: stat_date
+    dimensions:
+      - stat_date
+      - dept_code
+      - dept_name
+      - test_item_code
+      - test_item_name
+
+  - name: avg_inpatient_days
+    display_name: "平均住院天数"
+    description: "指定统计日期和科室下的平均住院天数。"
+    source_table: ads.ads_inpatient_quality_board
+    formula: "AVG(avg_inpatient_days)"
+    time_field: stat_date
+    dimensions:
+      - stat_date
+      - dept_code
+      - dept_name

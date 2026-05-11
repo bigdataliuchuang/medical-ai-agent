@@ -1,0 +1,513 @@
+version: "0.2"
+description: "DQ 规则元数据，覆盖 quality_rule_catalog.md 定义的 25 条规则（DQ-001 ~ DQ-025），来源于 sql/medical/dq/check/。"
+rules:
+  # ── Phase 2 基础规则（ODS 层） ──────────────────────────────────────────────
+
+  - rule_code: DQ-001
+    name: "患者ID非空检查"
+    category: completeness
+    severity: CRITICAL
+    layer: ODS
+    target_tables:
+      - ods.ods_patient_info
+    target_fields:
+      - patient_id
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+      - sql/medical/dq/check/check_patient_id_not_null.sql
+    fix_remark: "返回源系统补录 patient_id。"
+
+  - rule_code: DQ-002
+    name: "就诊流水号非空检查"
+    category: completeness
+    severity: CRITICAL
+    layer: DWD
+    target_tables:
+      - dwd.dwd_visit
+      - dwd.dwd_diagnosis
+      - dwd.dwd_inpatient
+      - dwd.dwd_outpatient
+      - dwd.dwd_order
+      - dwd.dwd_expense
+      - dwd.dwd_exam
+      - dwd.dwd_lab
+    target_fields:
+      - visit_sn
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+      - sql/medical/dq/check/check_visit_sn_not_null.sql
+    fix_remark: "返回源系统补录 visit_sn。"
+
+  - rule_code: DQ-003
+    name: "诊断编码非空检查"
+    category: completeness
+    severity: HIGH
+    layer: ODS
+    target_tables:
+      - ods.ods_diag_info
+    target_fields:
+      - diag_code
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+      - sql/medical/dq/check/check_diag_code_not_null.sql
+    fix_remark: "医生补录 ICD-10 编码。"
+
+  - rule_code: DQ-004
+    name: "诊断患者关联完整性"
+    category: consistency
+    severity: CRITICAL
+    layer: DWD
+    target_tables:
+      - dwd.dwd_diagnosis
+      - dwd.dwd_patient
+    target_fields:
+      - patient_id
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+      - sql/medical/dq/check/check_diagnosis_join_patient.sql
+    fix_remark: "核查患者 ID 是否跨系统不一致，必要时触发 MPI 排查。"
+
+  - rule_code: DQ-005
+    name: "住院时间逻辑检查"
+    category: consistency
+    severity: HIGH
+    layer: ODS
+    target_tables:
+      - ods.ods_inpatient_info
+    target_fields:
+      - admission_time
+      - discharge_time
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+      - sql/medical/dq/check/check_discharge_time_after_admission.sql
+    fix_remark: "核查 HIS 系统录入，联系病案室修正。"
+
+  - rule_code: DQ-006
+    name: "费用金额范围检查"
+    category: accuracy
+    severity: MEDIUM
+    layer: ODS
+    target_tables:
+      - ods.ods_inpatient_expense_record
+    target_fields:
+      - amount
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+      - sql/medical/dq/check/check_expense_amount_non_negative.sql
+    fix_remark: "核查财务系统，确认是否为冲销记录。"
+
+  - rule_code: DQ-007
+    name: "检验项目名称非空"
+    category: completeness
+    severity: MEDIUM
+    layer: ODS
+    target_tables:
+      - ods.ods_lab_info
+    target_fields:
+      - lab_name
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+      - sql/medical/dq/check/check_lab_item_mapping.sql
+    fix_remark: "核查 LIS 系统字典表，补录检验项目名称。"
+
+  - rule_code: DQ-008
+    name: "关键时间字段非空检查"
+    category: completeness
+    severity: HIGH
+    layer: DWD
+    target_tables:
+      - dwd.dwd_visit
+      - dwd.dwd_inpatient
+      - dwd.dwd_exam
+      - dwd.dwd_lab
+    target_fields:
+      - visit_datetime
+      - admission_datetime
+      - report_time
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+      - sql/medical/dq/check/check_required_time_fields.sql
+    fix_remark: "确认是否为未出报告的检查，等待报告后重跑。"
+
+  # ── Phase 4 DWD 规则 ────────────────────────────────────────────────────────
+
+  - rule_code: DQ-009
+    name: "DWD患者行数损失率"
+    category: consistency
+    severity: CRITICAL
+    layer: DWD
+    target_tables:
+      - ods.ods_patient_info
+      - dwd.dwd_patient
+    target_fields:
+      - row_count
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+      - sql/medical/dq/check/check_dwd_row_count_loss.sql
+    fix_remark: "DWD 过滤比例异常，排查清洗 SQL 逻辑。"
+
+  - rule_code: DQ-010
+    name: "ICD-10编码规范检查"
+    category: accuracy
+    severity: HIGH
+    layer: DWD
+    target_tables:
+      - dwd.dwd_diagnosis
+      - dim.dim_diagnosis_dict
+    target_fields:
+      - diagnosis_code
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+      - sql/medical/dq/check/check_diagnosis_code_mapping.sql
+    fix_remark: "核查 ICD-10 字典映射，推动源系统按标准编码录入。"
+
+  - rule_code: DQ-011
+    name: "药品编码非空检查"
+    category: completeness
+    severity: HIGH
+    layer: DWD
+    target_tables:
+      - dwd.dwd_order
+    target_fields:
+      - drug_code
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+      - sql/medical/dq/check/check_drug_code_not_null.sql
+    fix_remark: "核查 HIS 医嘱字典，补录药品编码。"
+
+  - rule_code: DQ-012
+    name: "DWD费用金额合理性"
+    category: accuracy
+    severity: MEDIUM
+    layer: DWD
+    target_tables:
+      - dwd.dwd_inpatient
+      - dwd.dwd_expense
+    target_fields:
+      - amount
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+      - sql/medical/dq/check/check_expense_amount_non_negative.sql
+    fix_remark: "超百万元单笔费用需人工审核。"
+
+  - rule_code: DQ-013
+    name: "DWD出院诊断完整性"
+    category: completeness
+    severity: HIGH
+    layer: DWD
+    target_tables:
+      - dwd.dwd_diagnosis
+    target_fields:
+      - diagnosis_type
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+    fix_remark: "核查病案室，补录出院诊断。"
+
+  - rule_code: DQ-014
+    name: "DWD etl_time非空"
+    category: completeness
+    severity: MEDIUM
+    layer: DWD
+    target_tables:
+      - dwd.dwd_patient
+      - dwd.dwd_visit
+      - dwd.dwd_diagnosis
+      - dwd.dwd_order
+      - dwd.dwd_expense
+    target_fields:
+      - etl_time
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+      - sql/medical/dq/check/check_etl_time_not_null.sql
+    fix_remark: "ETL 程序异常，检查 INSERT 逻辑。"
+
+  # ── Phase 5 MPI/MDM 规则 ────────────────────────────────────────────────────
+
+  - rule_code: DQ-015
+    name: "MPI主记录唯一性"
+    category: consistency
+    severity: CRITICAL
+    layer: MDM
+    target_tables:
+      - mpi.mpi_patient_master
+    target_fields:
+      - mpi_id
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+      - sql/medical/dq/check/check_mpi_unique.sql
+    fix_remark: "检查 MPI 实体解析逻辑，排查重复 mpi_id。"
+
+  - rule_code: DQ-016
+    name: "MPI交叉引用覆盖率"
+    category: consistency
+    severity: HIGH
+    layer: MDM
+    target_tables:
+      - mpi.mpi_patient_source_map
+      - dwd.dwd_patient
+    target_fields:
+      - mpi_id
+      - patient_id
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+      - sql/medical/dq/check/check_dwd_patient_has_mpi.sql
+      - sql/medical/dq/check/check_source_patient_map_unique.sql
+    fix_remark: "重跑 MPI 实体解析，覆盖未匹配 patient_id。"
+
+  - rule_code: DQ-017
+    name: "MPI合并日志完整性"
+    category: completeness
+    severity: MEDIUM
+    layer: MDM
+    target_tables:
+      - mpi.mpi_merge_log
+    target_fields:
+      - merge_id
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+    fix_remark: "MPI 程序异常，检查 merge_log 写入逻辑。"
+
+  - rule_code: DQ-018
+    name: "MPI身份证去重率"
+    category: accuracy
+    severity: HIGH
+    layer: MDM
+    target_tables:
+      - mpi.mpi_patient_master
+    target_fields:
+      - id_card
+      - mpi_id
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+    fix_remark: "同一身份证对应多个 mpi_id，需人工审核合并。"
+
+  # ── Phase 7 流式规则 ────────────────────────────────────────────────────────
+
+  - rule_code: DQ-019
+    name: "流式数据延迟检查"
+    category: timeliness
+    severity: HIGH
+    layer: Paimon
+    target_tables:
+      - paimon.ods.*
+    target_fields:
+      - event_time
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+    fix_remark: "检查 Flink 作业是否运行，Kafka 积压是否过大。"
+
+  - rule_code: DQ-020
+    name: "流批行数一致性"
+    category: consistency
+    severity: MEDIUM
+    layer: cross_layer
+    target_tables:
+      - doris.ods.*
+      - paimon.ods.*
+    target_fields:
+      - row_count
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+    fix_remark: "每日跑批后校验，差异 >1% 需排查。"
+
+  - rule_code: DQ-021
+    name: "流式Checkpoint成功率"
+    category: accuracy
+    severity: HIGH
+    layer: Flink
+    target_tables:
+      - flink.metrics
+    target_fields:
+      - checkpoint_success_rate
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+    fix_remark: "Checkpoint 失败率高，检查状态后端和存储。"
+
+  # ── Phase 8 指标层规则（ADS） ───────────────────────────────────────────────
+
+  - rule_code: DQ-022
+    name: "ADS上报患者数非零"
+    category: accuracy
+    severity: CRITICAL
+    layer: ADS
+    target_tables:
+      - ads.ads_tumor_report_monthly
+    target_fields:
+      - total_tumor_patients
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+    fix_remark: "ADS 为空则上报失败，需排查 DWD→ADS 流程。"
+
+  - rule_code: DQ-023
+    name: "ADS费用汇总一致性"
+    category: consistency
+    severity: HIGH
+    layer: ADS
+    target_tables:
+      - ads.ads_expense_by_tumor_type
+      - dws.dws_expense_summary_1d
+    target_fields:
+      - expense_total
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+    fix_remark: "ADS 和 DWS 计算口径不一致，排查 GROUP BY 逻辑。"
+
+  - rule_code: DQ-024
+    name: "ADS用药频次非负"
+    category: accuracy
+    severity: MEDIUM
+    layer: ADS
+    target_tables:
+      - ads.ads_drug_usage_trend
+    target_fields:
+      - usage_count
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+    fix_remark: "出现负数说明数据回撤未正确处理。"
+
+  - rule_code: DQ-025
+    name: "ADS数据时效性"
+    category: timeliness
+    severity: HIGH
+    layer: ADS
+    target_tables:
+      - ads.ads_drug_usage_trend
+      - ads.ads_dq_result_summary
+      - ads.ads_inpatient_quality_board
+      - ads.ads_expense_by_tumor_type
+      - ads.ads_patient_mpi_summary
+      - ads.ads_tumor_report_monthly
+    target_fields:
+      - stat_date
+    source_paths:
+      - docs/medical-governance/runbook/quality_rule_catalog.md
+      - sql/medical/dq/check/check_ads_data_timeliness.sql
+    fix_remark: "ADS 无昨日数据，检查 DolphinScheduler 任务是否成功。"
+
+  # ── 扩展规则（SQL 中存在但未在 25 条目录中列出） ─────────────────────────────
+
+  - rule_code: DQ-DRUG-DEPT-NULL
+    name: "抗肿瘤药物汇总科室编码非空检查"
+    category: completeness
+    severity: HIGH
+    layer: DWS
+    target_tables:
+      - dws.dws_tumor_drug_usage_1d
+    target_fields:
+      - dept_code
+      - dept_name
+    source_paths:
+      - ai-data-agent/scripts/init_pocket_duckdb.py
+    fix_remark: "核查医嘱 visit_sn 与住院就诊记录是否能关联，补齐科室编码后重跑 DWS 汇总。"
+
+  - rule_code: DQ-EXT-001
+    name: "诊断就诊关联完整性"
+    category: consistency
+    severity: CRITICAL
+    layer: DWD
+    target_tables:
+      - dwd.dwd_diagnosis
+      - dwd.dwd_visit
+    target_fields:
+      - visit_id
+    source_paths:
+      - sql/medical/dq/check/check_diagnosis_join_visit.sql
+    fix_remark: "诊断记录无法关联就诊记录，检查 visit_id 映射逻辑。"
+
+  - rule_code: DQ-EXT-002
+    name: "药品编码映射完整性"
+    category: consistency
+    severity: HIGH
+    layer: DWD
+    target_tables:
+      - dwd.dwd_order
+      - dim.dim_drug_dict
+    target_fields:
+      - drug_code
+    source_paths:
+      - sql/medical/dq/check/check_drug_mapping.sql
+    fix_remark: "医嘱中药品编码无法匹配药品字典，补充字典映射。"
+
+  - rule_code: DQ-EXT-003
+    name: "就诊MDM关联完整性"
+    category: consistency
+    severity: HIGH
+    layer: DWD
+    target_tables:
+      - dwd.dwd_visit
+      - mpi.mpi_patient_master
+    target_fields:
+      - mpi_id
+    source_paths:
+      - sql/medical/dq/check/check_dwd_visit_has_mdm.sql
+    fix_remark: "就诊记录未关联 MDM 主数据，重跑 MPI 实体解析。"
+
+  - rule_code: DQ-EXT-004
+    name: "来源就诊映射唯一性"
+    category: consistency
+    severity: HIGH
+    layer: MDM
+    target_tables:
+      - mpi.mpi_patient_source_map
+    target_fields:
+      - source_system
+      - source_patient_id
+    source_paths:
+      - sql/medical/dq/check/check_source_visit_map_unique.sql
+    fix_remark: "同一来源就诊 ID 映射多个 mpi_id，检查映射逻辑。"
+
+  - rule_code: DQ-EXT-005
+    name: "DWS患者就诊汇总一致性"
+    category: consistency
+    severity: MEDIUM
+    layer: DWS
+    target_tables:
+      - dws.dws_patient_visit_1d
+      - dwd.dwd_visit
+    target_fields:
+      - visit_cnt_total
+    source_paths:
+      - sql/medical/dq/check/check_dws_patient_visit_summary.sql
+    fix_remark: "DWS 汇总与 DWD 明细行数不一致，检查聚合逻辑。"
+
+  - rule_code: DQ-EXT-006
+    name: "医嘱就诊关联完整性"
+    category: consistency
+    severity: HIGH
+    layer: DWD
+    target_tables:
+      - dwd.dwd_order
+      - dwd.dwd_visit
+    target_fields:
+      - visit_id
+    source_paths:
+      - sql/medical/dq/check/check_order_join_visit.sql
+    fix_remark: "医嘱记录无法关联就诊记录，检查 visit_id 映射。"
+
+  - rule_code: DQ-EXT-007
+    name: "手术时间逻辑检查"
+    category: consistency
+    severity: HIGH
+    layer: DWD
+    target_tables:
+      - dwd.dwd_operation
+      - dwd.dwd_inpatient
+    target_fields:
+      - operation_datetime
+      - admission_datetime
+    source_paths:
+      - sql/medical/dq/check/check_operation_time_after_admission.sql
+    fix_remark: "手术时间早于入院时间，核查 HIS 系统录入。"
+
+  - rule_code: DQ-EXT-008
+    name: "就诊ID唯一性"
+    category: consistency
+    severity: CRITICAL
+    layer: DWD
+    target_tables:
+      - dwd.dwd_visit
+    target_fields:
+      - visit_id
+    source_paths:
+      - sql/medical/dq/check/check_visit_id_unique.sql
+    fix_remark: "visit_id 出现重复，检查 DWD 清洗去重逻辑。"
