@@ -2,6 +2,7 @@ fastapi==0.111.0
 uvicorn==0.29.0
 pymysql==1.1.0
 anthropic>=0.40.0
+openai>=1.30.0
 sqlglot==23.0.0
 python-dotenv==1.0.0
 pydantic==2.7.0

@@ -1,13 +1,10 @@
 import os
 import json
 from enum import Enum
-from anthropic import Anthropic
 from dotenv import load_dotenv
+from agent.sql_gen import _call_llm
 
 load_dotenv()
-
-client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-model = os.getenv("LLM_MODEL", "claude-haiku-4-5-20251001")
 
 
 class Intent(str, Enum):
@@ -44,14 +41,7 @@ def classify(question: str, history: list = None) -> dict:
         messages.append({"role": "user", "content": f"当前问题：{question}"})
 
     try:
-        resp = client.messages.create(
-            model=model,
-            max_tokens=100,
-            system=INTENT_SYSTEM,
-            messages=messages,
-            timeout=10,
-        )
-        text = resp.content[0].text.strip()
+        text = _call_llm(INTENT_SYSTEM, messages)
         # 提取 JSON
         if "{" in text:
             text = text[text.index("{"):text.rindex("}") + 1]
