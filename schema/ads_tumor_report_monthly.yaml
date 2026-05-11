@@ -1,5 +1,49 @@
-# 待填充 - 参考 ai_agent_plan.md 第五节 Schema YAML 格式规范
-table_name: ""
-description: ""
-columns: []
-sample_questions: []
+table_name: ads_tumor_report_monthly
+database: ads
+description: 肿瘤月度上报表，按化疗方案和肿瘤类型统计患者数、疗程、费用和不良反应
+business_domain: 药物监测
+data_layer: ADS
+update_frequency: 每月
+
+columns:
+  - name: report_month
+    type: VARCHAR
+    description: 上报月份（YYYY-MM）
+    example: "2024-05"
+  - name: chemo_regimen
+    type: VARCHAR
+    description: 化疗方案名称
+    example: "GP方案"
+  - name: tumor_type
+    type: VARCHAR
+    description: 肿瘤类型（ICD-10分类）
+    example: "肺癌"
+  - name: patient_cnt
+    type: INT
+    description: 使用患者人数（去重）
+    example: 85
+  - name: drug_name
+    type: VARCHAR
+    description: 主要药品名称
+    example: "顺铂"
+  - name: drug_expense_total
+    type: DECIMAL
+    description: 药品费用合计（元）
+    example: 510000.00
+  - name: completion_rate
+    type: DECIMAL
+    description: 治疗完成率（%）
+    example: 92.50
+  - name: adr_rate
+    type: DECIMAL
+    description: 药物不良反应发生率（%）
+    example: 18.30
+
+sample_questions:
+  - "本月肺癌GP方案的患者数和完成率？"
+  - "哪种化疗方案不良反应率最高？"
+  - "本月抗肿瘤药品费用合计多少？"
+
+related_tables:
+  - ads_drug_usage_trend
+  - ads_expense_by_tumor_type

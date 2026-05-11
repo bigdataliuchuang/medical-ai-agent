@@ -1,5 +1,49 @@
-# 待填充 - 参考 ai_agent_plan.md 第五节 Schema YAML 格式规范
-table_name: ""
-description: ""
-columns: []
-sample_questions: []
+table_name: ads_patient_mpi_summary
+database: ads
+description: 患者主数据汇总表，每日统计 MPI 去重效果、匹配成功率、审核队列和字段完整率
+business_domain: 患者主数据
+data_layer: ADS
+update_frequency: 每日
+
+columns:
+  - name: stat_date
+    type: DATE
+    description: 统计日期
+    example: "2024-05-11"
+  - name: total_mpi_cnt
+    type: BIGINT
+    description: MPI主索引总数（去重后患者数）
+    example: 11893
+  - name: mpi_coverage_rate
+    type: DECIMAL
+    description: MPI覆盖率（%）
+    example: 95.20
+  - name: exact_match_rate
+    type: DECIMAL
+    description: 精确匹配率（%）
+    example: 82.30
+  - name: fuzzy_match_rate
+    type: DECIMAL
+    description: 模糊匹配率（%）
+    example: 12.50
+  - name: unmatch_rate
+    type: DECIMAL
+    description: 未匹配率（%）
+    example: 5.20
+  - name: pending_review_cnt
+    type: INT
+    description: 待审核队列长度
+    example: 45
+  - name: id_card_valid_rate
+    type: DECIMAL
+    description: 身份证有效率（%）
+    example: 99.10
+
+sample_questions:
+  - "MPI去重后有多少患者？"
+  - "精确匹配率是多少？"
+  - "待审核的重复患者有多少？"
+  - "身份证有效率如何？"
+
+related_tables:
+  - ads_dq_result_summary

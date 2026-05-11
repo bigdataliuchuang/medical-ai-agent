@@ -1,5 +1,46 @@
-# 待填充 - 参考 ai_agent_plan.md 第五节 Schema YAML 格式规范
-table_name: ""
-description: ""
-columns: []
-sample_questions: []
+table_name: ads_expense_by_tumor_type
+database: ads
+description: 按肿瘤类型的费用分析表，统计各肿瘤患者规模、费用总量和费用结构（药品/检查/手术/其他）
+business_domain: 费用分析
+data_layer: ADS
+update_frequency: 每日
+
+columns:
+  - name: stat_date
+    type: DATE
+    description: 统计日期
+    example: "2024-05-11"
+  - name: tumor_type
+    type: VARCHAR
+    description: 肿瘤类型，如肺癌/乳腺癌/结直肠癌
+    example: "肺癌"
+  - name: patient_cnt
+    type: INT
+    description: 就诊患者数（去重）
+    example: 450
+  - name: avg_expense_per_patient
+    type: DECIMAL
+    description: 人均医疗费用（元）
+    example: 35000.00
+  - name: drug_expense
+    type: DECIMAL
+    description: 药品费用（元）
+    example: 21700.00
+  - name: exam_expense
+    type: DECIMAL
+    description: 检查检验费用（元）
+    example: 7000.00
+  - name: surgery_expense
+    type: DECIMAL
+    description: 手术费用（元）
+    example: 3500.00
+
+sample_questions:
+  - "肺癌患者平均住院费用是多少？"
+  - "哪种肿瘤类型的人均费用最高？"
+  - "乳腺癌的药品费占比多少？"
+  - "各肿瘤类型的费用分布情况？"
+
+related_tables:
+  - ads_drug_usage_trend
+  - ads_inpatient_quality_board

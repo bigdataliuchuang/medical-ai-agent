@@ -1,5 +1,53 @@
-# 待填充 - 参考 ai_agent_plan.md 第五节 Schema YAML 格式规范
-table_name: ""
-description: ""
-columns: []
-sample_questions: []
+table_name: ads_inpatient_quality_board
+database: ads
+description: 住院质量指标看板，按科室统计平均住院天数、手术量、并发症率、再入院率等质量指标
+business_domain: 住院质量
+data_layer: ADS
+update_frequency: 每日
+
+columns:
+  - name: stat_date
+    type: DATE
+    description: 统计日期
+    example: "2024-05-11"
+  - name: dept_name
+    type: VARCHAR
+    description: 科室名称（HOSPITAL=全院汇总）
+    example: "呼吸内科"
+  - name: avg_inpatient_days
+    type: DECIMAL
+    description: 平均住院天数
+    example: 8.50
+  - name: surgery_cnt
+    type: INT
+    description: 手术人次
+    example: 15
+  - name: complication_rate
+    type: DECIMAL
+    description: 手术并发症发生率（%）
+    example: 3.20
+  - name: readmission_30d_rate
+    type: DECIMAL
+    description: 30天再入院率（%）
+    example: 5.80
+  - name: mortality_rate
+    type: DECIMAL
+    description: 住院死亡率（‰）
+    example: 1.20
+  - name: critical_timely_rate
+    type: DECIMAL
+    description: 危急值30分钟内处置及时率（%）
+    example: 95.50
+  - name: tumor_patient_cnt
+    type: INT
+    description: 肿瘤患者住院人次
+    example: 180
+
+sample_questions:
+  - "全院平均住院天数是多少？"
+  - "哪个科室手术量最高？"
+  - "30天再入院率是多少？"
+  - "肿瘤患者的平均住院天数是多少天？"
+
+related_tables:
+  - ads_expense_by_tumor_type

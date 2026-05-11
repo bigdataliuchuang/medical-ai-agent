@@ -1,5 +1,54 @@
-# 待填充 - 参考 ai_agent_plan.md 第五节 Schema YAML 格式规范
-table_name: ""
-description: ""
-columns: []
-sample_questions: []
+table_name: ads_dq_result_summary
+database: ads
+description: 数据质量评分汇总表，每日统计各数据层（ODS/DWD/MPI/ADS）的 DQ 规则执行情况、记录合格率和综合评分
+business_domain: 数据质量
+data_layer: ADS
+update_frequency: 每日
+
+columns:
+  - name: stat_date
+    type: DATE
+    description: 统计日期
+    example: "2024-05-11"
+  - name: data_layer
+    type: VARCHAR
+    description: 数据层，取值 ODS/DWD/MPI/ADS
+    example: "ODS"
+  - name: table_name
+    type: VARCHAR
+    description: 被检测表名
+    example: "ods_patient_visit_info"
+  - name: rule_total_cnt
+    type: INT
+    description: 执行规则总数
+    example: 25
+  - name: rule_pass_cnt
+    type: INT
+    description: 通过规则数
+    example: 22
+  - name: dq_score
+    type: DECIMAL
+    description: 数据质量综合评分（0-100）
+    example: 87.50
+  - name: critical_fail_cnt
+    type: BIGINT
+    description: CRITICAL级别失败条数
+    example: 1
+  - name: high_fail_cnt
+    type: BIGINT
+    description: HIGH级别失败条数
+    example: 2
+  - name: record_pass_rate
+    type: DECIMAL
+    description: 记录合格率（%）
+    example: 98.50
+
+sample_questions:
+  - "今天数据质量评分是多少？"
+  - "哪些数据层的DQ评分低于75分？"
+  - "CRITICAL级别的失败规则有几条？"
+  - "近30天DQ评分趋势如何？"
+
+related_tables:
+  - dq_check_result
+  - dq_issue_detail

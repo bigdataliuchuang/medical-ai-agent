@@ -1,5 +1,42 @@
-# 待填充 - 参考 ai_agent_plan.md 第五节 Schema YAML 格式规范
-table_name: ""
-description: ""
-columns: []
-sample_questions: []
+table_name: ads_drug_usage_trend
+database: ads
+description: 抗肿瘤药物用量趋势表，按月按药品类别统计使用患者数、用药量和费用
+business_domain: 药物监测
+data_layer: ADS
+update_frequency: 每日
+
+columns:
+  - name: stat_month
+    type: VARCHAR
+    description: 统计月份（YYYY-MM）
+    example: "2024-05"
+  - name: drug_category
+    type: VARCHAR
+    description: 药品类别，如化疗/靶向/免疫/内分泌
+    example: "靶向"
+  - name: drug_name
+    type: VARCHAR
+    description: 药品通用名
+    example: "吉非替尼"
+  - name: patient_cnt
+    type: INT
+    description: 使用患者人数（去重）
+    example: 120
+  - name: drug_expense_total
+    type: DECIMAL
+    description: 药品费用合计（元）
+    example: 360000.00
+  - name: avg_expense_per_patient
+    type: DECIMAL
+    description: 人均药品费用（元）
+    example: 3000.00
+
+sample_questions:
+  - "本月铂类药物使用了多少人次？"
+  - "近6个月靶向药物使用趋势如何？"
+  - "哪种抗肿瘤药物费用最高？"
+  - "免疫治疗药物的人均费用是多少？"
+
+related_tables:
+  - ads_tumor_report_monthly
+  - ads_expense_by_tumor_type
