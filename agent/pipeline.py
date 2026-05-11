@@ -29,20 +29,22 @@ def run(question: str, session_id: str = "", user_id: str = "") -> dict:
     # 3. 根据意图分支处理
     if intent_type == "OUT_OF_SCOPE":
         answer = "该问题超出数据查询范围，请提出与医疗数据相关的问题。"
-        _save_and_log(session_id, user_id, question, "", "out_of_scope", 0, start, answer)
+        _save_and_log(session_id, user_id, question, "", "out_of_scope", 0, start, answer, intent_type)
         return _make_response(answer, "", [], 0, "out_of_scope", session_id)
 
     if intent_type == "ASK_CONCEPT":
         answer = sql_gen.explain_concept(question)
-        _save_and_log(session_id, user_id, question, "", "concept", 0, start, answer)
+        _save_and_log(session_id, user_id, question, "", "concept", 0, start, answer, intent_type)
         return _make_response(answer, "", [], 0, "concept", session_id)
 
     # QUERY_DATA / FOLLOWUP → 走 SQL 生成流程
 
     # 4. 检索相关 schema（Milvus 优先，兜底全量）
+    retrieved_tables = []
     try:
         docs = retriever.retrieve(question, top_k=3)
         schema_context = "\n\n".join(d.full_text for d in docs)
+        retrieved_tables = [d.table_name for d in docs]
     except Exception:
         schema_context = FALLBACK_SCHEMA
 
@@ -51,26 +53,26 @@ def run(question: str, session_id: str = "", user_id: str = "") -> dict:
     sql = sql_gen.generate_sql_with_prompt(system_msg, messages)
     if sql == "CANNOT_GENERATE":
         answer = "无法将该问题转化为数据查询，请换种方式提问。"
-        _save_and_log(session_id, user_id, question, "", "cannot_generate", 0, start, answer)
+        _save_and_log(session_id, user_id, question, "", "cannot_generate", 0, start, answer, intent_type, retrieved_tables)
         return _make_response(answer, "", [], 0, "cannot_generate", session_id)
 
     # 6. 安全校验
     guard = sql_guard.validate(sql)
     if not guard["valid"]:
         answer = f"SQL 安全校验未通过：{guard['reason']}"
-        _save_and_log(session_id, user_id, question, sql, "guard_rejected", 0, start, answer)
+        _save_and_log(session_id, user_id, question, sql, "guard_rejected", 0, start, answer, intent_type, retrieved_tables, "rejected")
         return _make_response(answer, sql, [], 0, "guard_rejected", session_id)
 
     # 7. 执行查询
     result = executor.execute(sql)
     if result["error"]:
         answer = f"查询执行失败：{result['error']}"
-        _save_and_log(session_id, user_id, question, sql, "sql_error", 0, start, answer)
+        _save_and_log(session_id, user_id, question, sql, "sql_error", 0, start, answer, intent_type, retrieved_tables, "passed")
         return _make_response(answer, sql, [], 0, "sql_error", session_id)
 
     # 8. 解释结果
     answer = sql_gen.explain_result(question, sql, result["data"])
-    _save_and_log(session_id, user_id, question, sql, "success", result["row_count"], start, answer)
+    _save_and_log(session_id, user_id, question, sql, "success", result["row_count"], start, answer, intent_type, retrieved_tables, "passed")
 
     return _make_response(answer, sql, result["data"], result["row_count"], "success", session_id)
 
@@ -86,8 +88,11 @@ def _make_response(answer, sql, data, row_count, status, session_id):
     }
 
 
-def _save_and_log(session_id, user_id, question, sql, status, row_count, start, answer):
+def _save_and_log(session_id, user_id, question, sql, status, row_count, start, answer,
+                   intent="", retrieved_tables=None, guard_result=""):
     latency = int((time.time() - start) * 1000)
-    logger.log(session_id, user_id, question, sql, status, row_count, latency)
+    logger.log(session_id, user_id, question, sql, status, row_count, latency,
+               intent=intent, retrieved_tables=retrieved_tables or [],
+               guard_result=guard_result, answer=answer)
     session_store.add_message(session_id, "user", question)
     session_store.add_message(session_id, "assistant", answer)
