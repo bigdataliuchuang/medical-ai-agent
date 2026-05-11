@@ -1,7 +1,6 @@
 import os
 import sys
 from pymilvus import connections, Collection, CollectionSchema, FieldSchema, DataType, utility
-from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 from indexer.schema_parser import load_all_schemas
 
@@ -18,6 +17,14 @@ def build_index(schema_dir: str = None):
     schema_dir = schema_dir or SCHEMA_DIR
 
     print(f"Loading embedding model: {EMBEDDING_MODEL}")
+    try:
+        from sentence_transformers import SentenceTransformer
+    except ImportError as exc:
+        raise RuntimeError(
+            "sentence-transformers is not installed in the lightweight runtime. "
+            "Install it before rebuilding the local Milvus index."
+        ) from exc
+
     model = SentenceTransformer(EMBEDDING_MODEL)
 
     print(f"Loading schemas from: {schema_dir}")

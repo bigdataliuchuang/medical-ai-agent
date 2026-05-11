@@ -1,7 +1,6 @@
 import os
 import asyncio
 from pymilvus import connections, Collection
-from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 from indexer.schema_parser import load_all_schemas, SchemaDoc
 
@@ -19,6 +18,8 @@ _model = None
 def _get_model():
     global _model
     if _model is None:
+        from sentence_transformers import SentenceTransformer
+
         _model = SentenceTransformer(EMBEDDING_MODEL)
     return _model
 
