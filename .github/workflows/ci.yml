@@ -47,3 +47,31 @@ jobs:
         test -d memory && echo "✅ memory module found"
         test -d schema && echo "✅ schema directory found"
         echo "✅ All core components present"
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Create .env for docker build
+      run: |
+        cat > .env << 'EOF'
+        ANTHROPIC_API_KEY=test-key-ci-only
+        LLM_MODEL=claude-haiku-4-5-20251001
+        DORIS_HOST=localhost
+        DORIS_PORT=9030
+        DORIS_USER=root
+        DORIS_PASSWORD=test
+        DORIS_DATABASE=test
+        MILVUS_HOST=localhost
+        MILVUS_PORT=19530
+        EOF
+
+    - name: Build docker image
+      run: docker build -f Dockerfile.simple -t medical-ai-agent:test .
+
+    - name: Verify image built successfully
+      run: docker images | grep medical-ai-agent
