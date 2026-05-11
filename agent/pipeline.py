@@ -56,12 +56,13 @@ def run(question: str, session_id: str = "", user_id: str = "") -> dict:
         _save_and_log(session_id, user_id, question, "", "cannot_generate", 0, start, answer, intent_type, retrieved_tables)
         return _make_response(answer, "", [], 0, "cannot_generate", session_id)
 
-    # 6. 安全校验
+    # 6. 安全校验 + 自动注入 LIMIT
     guard = sql_guard.validate(sql)
     if not guard["valid"]:
         answer = f"SQL 安全校验未通过：{guard['reason']}"
         _save_and_log(session_id, user_id, question, sql, "guard_rejected", 0, start, answer, intent_type, retrieved_tables, "rejected")
         return _make_response(answer, sql, [], 0, "guard_rejected", session_id)
+    sql = sql_guard.add_limit(sql)
 
     # 7. 执行查询（失败时自动修复重试，最多 2 次）
     result = executor.execute(sql)
@@ -73,7 +74,7 @@ def run(question: str, session_id: str = "", user_id: str = "") -> dict:
             guard = sql_guard.validate(fixed_sql)
             if not guard["valid"]:
                 break
-            sql = fixed_sql
+            sql = sql_guard.add_limit(fixed_sql)
             result = executor.execute(sql)
             if not result["error"]:
                 break

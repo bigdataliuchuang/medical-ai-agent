@@ -13,6 +13,7 @@ WHITELIST = set(
 
 FORBIDDEN_TYPES = {exp.Insert, exp.Update, exp.Delete, exp.Drop, exp.Alter, exp.Create, exp.TruncateTable}
 FORBIDDEN_KEYWORDS = {"insert", "update", "delete", "drop", "truncate", "alter", "create"}
+DEFAULT_LIMIT = 100
 
 
 def validate(sql: str) -> dict:
@@ -38,6 +39,11 @@ def validate(sql: str) -> dict:
         if isinstance(node, tuple(FORBIDDEN_TYPES)):
             return {"valid": False, "reason": f"禁止执行写操作"}
 
+    # 禁止 SELECT *
+    for node in ast.find_all(exp.Star):
+        if not node.args.get("except"):
+            return {"valid": False, "reason": "禁止 SELECT *，请指定具体字段"}
+
     # 提取表名并检查白名单
     tables = set()
     for table in ast.find_all(exp.Table):
@@ -49,3 +55,17 @@ def validate(sql: str) -> dict:
         return {"valid": False, "reason": f"表 {', '.join(unknown)} 不在白名单中"}
 
     return {"valid": True, "reason": ""}
+
+
+def add_limit(sql: str) -> str:
+    """如果 SQL 没有 LIMIT 子句，自动注入 DEFAULT_LIMIT"""
+    try:
+        ast = sqlglot.parse_one(sql.strip().rstrip(";"), read="mysql")
+    except Exception:
+        return sql
+
+    if ast.find(exp.Limit):
+        return sql
+
+    limited = ast.limit(DEFAULT_LIMIT)
+    return limited.sql(dialect="mysql")
