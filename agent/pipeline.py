@@ -1,5 +1,5 @@
 import time
-from agent import sql_gen, sql_guard, executor, retriever
+from agent import sql_gen, sql_guard, executor, retriever, intent, prompt_builder
 from memory import session_store
 from audit import logger
 
@@ -19,62 +19,75 @@ FALLBACK_SCHEMA = """
 def run(question: str, session_id: str = "", user_id: str = "") -> dict:
     start = time.time()
 
-    # 获取对话历史
+    # 1. 获取对话历史
     history = session_store.get_history(session_id) if session_id else []
 
-    # 1. 检索相关 schema（Milvus 优先，兜底全量）
+    # 2. 意图识别
+    intent_result = intent.classify(question, history)
+    intent_type = intent_result["intent"]
+
+    # 3. 根据意图分支处理
+    if intent_type == "OUT_OF_SCOPE":
+        answer = "该问题超出数据查询范围，请提出与医疗数据相关的问题。"
+        _save_and_log(session_id, user_id, question, "", "out_of_scope", 0, start, answer)
+        return _make_response(answer, "", [], 0, "out_of_scope", session_id)
+
+    if intent_type == "ASK_CONCEPT":
+        answer = sql_gen.explain_concept(question)
+        _save_and_log(session_id, user_id, question, "", "concept", 0, start, answer)
+        return _make_response(answer, "", [], 0, "concept", session_id)
+
+    # QUERY_DATA / FOLLOWUP → 走 SQL 生成流程
+
+    # 4. 检索相关 schema（Milvus 优先，兜底全量）
     try:
         docs = retriever.retrieve(question, top_k=3)
         schema_context = "\n\n".join(d.full_text for d in docs)
     except Exception:
         schema_context = FALLBACK_SCHEMA
 
-    # 2. 生成 SQL
-    sql = sql_gen.generate_sql(question, schema_context)
+    # 5. 构建 prompt 并生成 SQL
+    system_msg, messages = prompt_builder.build_sql_prompt(question, schema_context, history)
+    sql = sql_gen.generate_sql_with_prompt(system_msg, messages)
     if sql == "CANNOT_GENERATE":
         answer = "无法将该问题转化为数据查询，请换种方式提问。"
-        _log(session_id, user_id, question, "", "cannot_generate", 0, start)
-        session_store.add_message(session_id, "user", question)
-        session_store.add_message(session_id, "assistant", answer)
-        return {"answer": answer, "sql": "", "data": [], "row_count": 0, "status": "cannot_generate", "session_id": session_id}
+        _save_and_log(session_id, user_id, question, "", "cannot_generate", 0, start, answer)
+        return _make_response(answer, "", [], 0, "cannot_generate", session_id)
 
-    # 3. 安全校验
+    # 6. 安全校验
     guard = sql_guard.validate(sql)
     if not guard["valid"]:
         answer = f"SQL 安全校验未通过：{guard['reason']}"
-        _log(session_id, user_id, question, sql, "guard_rejected", 0, start)
-        session_store.add_message(session_id, "user", question)
-        session_store.add_message(session_id, "assistant", answer)
-        return {"answer": answer, "sql": sql, "data": [], "row_count": 0, "status": "guard_rejected", "session_id": session_id}
+        _save_and_log(session_id, user_id, question, sql, "guard_rejected", 0, start, answer)
+        return _make_response(answer, sql, [], 0, "guard_rejected", session_id)
 
-    # 4. 执行查询
+    # 7. 执行查询
     result = executor.execute(sql)
     if result["error"]:
         answer = f"查询执行失败：{result['error']}"
-        _log(session_id, user_id, question, sql, "sql_error", 0, start)
-        session_store.add_message(session_id, "user", question)
-        session_store.add_message(session_id, "assistant", answer)
-        return {"answer": answer, "sql": sql, "data": [], "row_count": 0, "status": "sql_error", "session_id": session_id}
+        _save_and_log(session_id, user_id, question, sql, "sql_error", 0, start, answer)
+        return _make_response(answer, sql, [], 0, "sql_error", session_id)
 
-    # 5. 解释结果
+    # 8. 解释结果
     answer = sql_gen.explain_result(question, sql, result["data"])
-    latency = int((time.time() - start) * 1000)
-    _log(session_id, user_id, question, sql, "success", result["row_count"], start)
+    _save_and_log(session_id, user_id, question, sql, "success", result["row_count"], start, answer)
 
-    # 保存对话历史
-    session_store.add_message(session_id, "user", question)
-    session_store.add_message(session_id, "assistant", answer)
+    return _make_response(answer, sql, result["data"], result["row_count"], "success", session_id)
 
+
+def _make_response(answer, sql, data, row_count, status, session_id):
     return {
         "answer": answer,
         "sql": sql,
-        "data": result["data"],
-        "row_count": result["row_count"],
-        "status": "success",
+        "data": data,
+        "row_count": row_count,
+        "status": status,
         "session_id": session_id,
     }
 
 
-def _log(session_id: str, user_id: str, question: str, sql: str, status: str, row_count: int, start: float):
+def _save_and_log(session_id, user_id, question, sql, status, row_count, start, answer):
     latency = int((time.time() - start) * 1000)
     logger.log(session_id, user_id, question, sql, status, row_count, latency)
+    session_store.add_message(session_id, "user", question)
+    session_store.add_message(session_id, "assistant", answer)

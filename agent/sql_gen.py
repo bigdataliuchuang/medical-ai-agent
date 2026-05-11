@@ -9,15 +9,6 @@ model = os.getenv("LLM_MODEL", "claude-haiku-4-5-20251001")
 max_tokens = int(os.getenv("LLM_MAX_TOKENS", "1024"))
 timeout = int(os.getenv("LLM_TIMEOUT", "30"))
 
-SQL_SYSTEM = """你是一个 Doris SQL 专家。根据用户问题和表结构信息，生成可直接执行的 SQL。
-
-规则：
-1. 只生成 SELECT SQL，不要任何解释文字
-2. 表名必须带 database 前缀（如 ads.ads_drug_usage_trend）
-3. 日期函数使用 CURDATE()、DATE_SUB()、DATE_FORMAT()
-4. 如果无法根据已有表回答问题，只返回：CANNOT_GENERATE
-5. 返回纯 SQL，不要 markdown 代码块"""
-
 EXPLAIN_SYSTEM = """你是一个医疗数据分析师。根据用户问题、SQL 和查询结果，用简洁的中文回答。
 
 规则：
@@ -26,15 +17,23 @@ EXPLAIN_SYSTEM = """你是一个医疗数据分析师。根据用户问题、SQL
 3. 数据为空时如实告知"未查询到相关数据"
 4. 语气专业但易懂"""
 
+CONCEPT_SYSTEM = """你是一个医疗数据治理领域的专家。用简洁的中文解释概念。
 
-def generate_sql(question: str, schema_context: str) -> str:
-    prompt = f"表结构信息：\n{schema_context}\n\n用户问题：{question}"
+规则：
+1. 100字以内
+2. 专业但易懂
+3. 如果是医疗数据治理相关的缩写（如 MPI、DQ、MDM、ADS），给出全称和简要说明
+4. 如果问题与医疗数据无关，回答"这个问题超出了我的知识范围""""
+
+
+def generate_sql_with_prompt(system_msg: str, messages: list) -> str:
+    """使用 prompt_builder 构建的 system 和 messages 生成 SQL"""
     try:
         resp = client.messages.create(
             model=model,
             max_tokens=max_tokens,
-            system=SQL_SYSTEM,
-            messages=[{"role": "user", "content": prompt}],
+            system=system_msg,
+            messages=messages,
             timeout=timeout,
         )
         sql = resp.content[0].text.strip()
@@ -43,6 +42,21 @@ def generate_sql(question: str, schema_context: str) -> str:
         return sql
     except Exception:
         return "CANNOT_GENERATE"
+
+
+def explain_concept(question: str) -> str:
+    """回答概念性问题，不生成 SQL"""
+    try:
+        resp = client.messages.create(
+            model=model,
+            max_tokens=max_tokens,
+            system=CONCEPT_SYSTEM,
+            messages=[{"role": "user", "content": question}],
+            timeout=timeout,
+        )
+        return resp.content[0].text.strip()
+    except Exception:
+        return "概念解释生成失败，请稍后重试。"
 
 
 def explain_result(question: str, sql: str, data: list) -> str:
