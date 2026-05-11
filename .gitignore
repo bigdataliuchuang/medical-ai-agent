@@ -2,4 +2,12 @@
 .venv/
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
 audit/logs/
+data/*.db
+data/*.db-lock
+data/*.db-wal
+data/*.db-shm
+graphrag/
+.pytest_cache/
