@@ -44,6 +44,39 @@ def generate_sql_with_prompt(system_msg: str, messages: list) -> str:
         return "CANNOT_GENERATE"
 
 
+REPAIR_SYSTEM = """你是一个 Doris SQL 调试专家。给定原始问题、失败的 SQL 和错误信息，修正 SQL 使其能正确执行。
+
+规则：
+1. 只返回修正后的 SQL，不要解释
+2. 保持原始查询意图不变
+3. 如果无法修复，返回：CANNOT_REPAIR
+4. 不要 markdown 代码块"""
+
+
+def repair_sql(question: str, sql: str, error: str, schema_context: str) -> str:
+    """尝试自动修复执行失败的 SQL"""
+    prompt = (
+        f"表结构：\n{schema_context}\n\n"
+        f"用户问题：{question}\n\n"
+        f"失败的 SQL：\n{sql}\n\n"
+        f"错误信息：\n{error}"
+    )
+    try:
+        resp = client.messages.create(
+            model=model,
+            max_tokens=max_tokens,
+            system=REPAIR_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+            timeout=timeout,
+        )
+        fixed = resp.content[0].text.strip()
+        if fixed.startswith("```"):
+            fixed = fixed.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        return fixed
+    except Exception:
+        return "CANNOT_REPAIR"
+
+
 def explain_concept(question: str) -> str:
     """回答概念性问题，不生成 SQL"""
     try:

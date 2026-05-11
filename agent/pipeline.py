@@ -63,12 +63,24 @@ def run(question: str, session_id: str = "", user_id: str = "") -> dict:
         _save_and_log(session_id, user_id, question, sql, "guard_rejected", 0, start, answer, intent_type, retrieved_tables, "rejected")
         return _make_response(answer, sql, [], 0, "guard_rejected", session_id)
 
-    # 7. 执行查询
+    # 7. 执行查询（失败时自动修复重试，最多 2 次）
     result = executor.execute(sql)
     if result["error"]:
-        answer = f"查询执行失败：{result['error']}"
-        _save_and_log(session_id, user_id, question, sql, "sql_error", 0, start, answer, intent_type, retrieved_tables, "passed")
-        return _make_response(answer, sql, [], 0, "sql_error", session_id)
+        for attempt in range(2):
+            fixed_sql = sql_gen.repair_sql(question, sql, result["error"], schema_context)
+            if fixed_sql == "CANNOT_REPAIR":
+                break
+            guard = sql_guard.validate(fixed_sql)
+            if not guard["valid"]:
+                break
+            sql = fixed_sql
+            result = executor.execute(sql)
+            if not result["error"]:
+                break
+        if result["error"]:
+            answer = f"查询执行失败：{result['error']}"
+            _save_and_log(session_id, user_id, question, sql, "sql_error", 0, start, answer, intent_type, retrieved_tables, "passed")
+            return _make_response(answer, sql, [], 0, "sql_error", session_id)
 
     # 8. 解释结果
     answer = sql_gen.explain_result(question, sql, result["data"])
