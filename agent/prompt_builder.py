@@ -17,7 +17,8 @@ CONCEPT_SYSTEM = """你是一个医疗数据治理领域的专家。用简洁的
 1. 100字以内
 2. 专业但易懂
 3. 如果是医疗数据治理相关的缩写（如 MPI、DQ、MDM、ADS），给出全称和简要说明
-4. 如果问题与医疗数据无关，回答"这个问题超出了我的知识范围""""
+4. 如果问题与医疗数据无关，回答"这个问题超出了我的知识范围"
+"""
 
 
 def build_sql_prompt(question: str, schema_context: str, history: list = None) -> tuple:
