@@ -1,0 +1,208 @@
+description: 抗肿瘤及相关药品字典（dim.dim_drug_dict）
+
+table: dim.dim_drug_dict
+primary_key: drug_code
+fields:
+  - name: drug_code
+    type: VARCHAR(20)
+    comment: 药品编码（院内统一编码）
+    sensitive: false
+  - name: drug_name
+    type: VARCHAR(100)
+    comment: 药品通用名
+    sensitive: false
+  - name: drug_category
+    type: VARCHAR(20)
+    comment: "药品大类：ANTITUMOR(抗肿瘤) / ANTIBIOTIC(抗菌素) / HORMONE(激素) / OTHER(其他)"
+    sensitive: false
+  - name: atc_code
+    type: VARCHAR(10)
+    comment: "WHO ATC分类编码（L01=抗肿瘤药, L02=内分泌治疗, L03=免疫调节剂）"
+    sensitive: false
+  - name: is_antitumor
+    type: TINYINT
+    comment: "是否抗肿瘤药物（1=是, 0=否）"
+    sensitive: false
+  - name: drug_form
+    type: VARCHAR(20)
+    comment: 剂型（片剂/注射剂/胶囊等）
+    sensitive: false
+  - name: unit
+    type: VARCHAR(10)
+    comment: 计量单位（mg/ml/片）
+    sensitive: false
+
+drugs:
+  - drug_code: D001
+    drug_name: 顺铂
+    drug_category: ANTITUMOR
+    atc_code: L01XA01
+    is_antitumor: 1
+    drug_form: 注射剂
+    unit: mg
+
+  - drug_code: D002
+    drug_name: 卡铂
+    drug_category: ANTITUMOR
+    atc_code: L01XA02
+    is_antitumor: 1
+    drug_form: 注射剂
+    unit: mg
+
+  - drug_code: D003
+    drug_name: 紫杉醇
+    drug_category: ANTITUMOR
+    atc_code: L01CD01
+    is_antitumor: 1
+    drug_form: 注射剂
+    unit: mg
+
+  - drug_code: D004
+    drug_name: 多西他赛
+    drug_category: ANTITUMOR
+    atc_code: L01CD02
+    is_antitumor: 1
+    drug_form: 注射剂
+    unit: mg
+
+  - drug_code: D005
+    drug_name: 吉西他滨
+    drug_category: ANTITUMOR
+    atc_code: L01BC05
+    is_antitumor: 1
+    drug_form: 注射剂
+    unit: mg
+
+  - drug_code: D006
+    drug_name: 培美曲塞
+    drug_category: ANTITUMOR
+    atc_code: L01BA04
+    is_antitumor: 1
+    drug_form: 注射剂
+    unit: mg
+
+  - drug_code: D007
+    drug_name: 吉非替尼
+    drug_category: ANTITUMOR
+    atc_code: L01EB01
+    is_antitumor: 1
+    drug_form: 片剂
+    unit: mg
+    note: EGFR靶向药，用于非小细胞肺癌
+
+  - drug_code: D008
+    drug_name: 厄洛替尼
+    drug_category: ANTITUMOR
+    atc_code: L01EB02
+    is_antitumor: 1
+    drug_form: 片剂
+    unit: mg
+    note: EGFR靶向药
+
+  - drug_code: D009
+    drug_name: 奥希替尼
+    drug_category: ANTITUMOR
+    atc_code: L01EB04
+    is_antitumor: 1
+    drug_form: 片剂
+    unit: mg
+    note: 第三代EGFR靶向药，用于T790M突变
+
+  - drug_code: D010
+    drug_name: 贝伐珠单抗
+    drug_category: ANTITUMOR
+    atc_code: L01FG01
+    is_antitumor: 1
+    drug_form: 注射剂
+    unit: mg
+    note: 抗血管生成单抗
+
+  - drug_code: D011
+    drug_name: 曲妥珠单抗
+    drug_category: ANTITUMOR
+    atc_code: L01FD01
+    is_antitumor: 1
+    drug_form: 注射剂
+    unit: mg
+    note: HER2靶向，用于乳腺癌/胃癌
+
+  - drug_code: D012
+    drug_name: 帕妥珠单抗
+    drug_category: ANTITUMOR
+    atc_code: L01FD03
+    is_antitumor: 1
+    drug_form: 注射剂
+    unit: mg
+    note: HER2靶向，与曲妥珠联用
+
+  - drug_code: D013
+    drug_name: 帕博利珠单抗
+    drug_category: ANTITUMOR
+    atc_code: L01FF02
+    is_antitumor: 1
+    drug_form: 注射剂
+    unit: mg
+    note: PD-1免疫检查点抑制剂
+
+  - drug_code: D014
+    drug_name: 纳武利尤单抗
+    drug_category: ANTITUMOR
+    atc_code: L01FF01
+    is_antitumor: 1
+    drug_form: 注射剂
+    unit: mg
+    note: PD-1免疫检查点抑制剂
+
+  - drug_code: D015
+    drug_name: 阿替利珠单抗
+    drug_category: ANTITUMOR
+    atc_code: L01FF05
+    is_antitumor: 1
+    drug_form: 注射剂
+    unit: mg
+    note: PD-L1免疫检查点抑制剂
+
+  - drug_code: D016
+    drug_name: 伊马替尼
+    drug_category: ANTITUMOR
+    atc_code: L01EA01
+    is_antitumor: 1
+    drug_form: 片剂
+    unit: mg
+    note: BCR-ABL靶向，用于CML
+
+  - drug_code: D017
+    drug_name: 来那度胺
+    drug_category: ANTITUMOR
+    atc_code: L04AX04
+    is_antitumor: 1
+    drug_form: 胶囊
+    unit: mg
+    note: 免疫调节剂，用于多发性骨髓瘤
+
+  - drug_code: D018
+    drug_name: 硼替佐米
+    drug_category: ANTITUMOR
+    atc_code: L01XG01
+    is_antitumor: 1
+    drug_form: 注射剂
+    unit: mg
+    note: 蛋白酶体抑制剂，用于多发性骨髓瘤
+
+  - drug_code: D019
+    drug_name: 亚叶酸钙
+    drug_category: OTHER
+    atc_code: V03AF03
+    is_antitumor: 0
+    drug_form: 注射剂
+    unit: mg
+    note: 化疗解救药，不属于抗肿瘤药
+
+  - drug_code: D020
+    drug_name: 注射用甲氨蝶呤
+    drug_category: ANTITUMOR
+    atc_code: L01BA01
+    is_antitumor: 1
+    drug_form: 注射剂
+    unit: mg
+    note: 抗叶酸代谢，用于急性白血病/骨肉瘤

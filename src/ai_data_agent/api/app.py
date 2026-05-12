@@ -7,7 +7,7 @@ import time
 import uuid
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 
 from ai_data_agent.agent.audit import AuditRecord
@@ -28,6 +28,7 @@ from ai_data_agent.api.models import (
     ContextSummary,
     ConversationTurnResponse,
     HealthResponse,
+    MetricsResponse,
     QueryRequest,
     QueryResponse,
     SessionDeleteResponse,
@@ -171,6 +172,15 @@ def create_app(config_path: str, metadata_root: str = "ai-data-agent/metadata") 
     app.state.metadata = metadata
     app.state.query_services = build_query_services(config, metadata)
     app.state.memory = ConversationMemory()
+    # In-process counters for /metrics
+    app.state.metrics = {
+        "total_queries": 0,
+        "total_agent_queries": 0,
+        "total_errors": 0,
+        "elapsed_sum_ms": 0.0,
+        "sql_guard_rejections": 0,
+        "started_at": time.monotonic(),
+    }
 
     app.get("/", response_class=HTMLResponse)(_home_endpoint)
     app.get("/favicon.ico", status_code=204)(_favicon_endpoint)
@@ -180,6 +190,7 @@ def create_app(config_path: str, metadata_root: str = "ai-data-agent/metadata") 
     app.delete("/api/v1/sessions/{session_id}", response_model=SessionDeleteResponse)(_session_delete_endpoint)
     app.get("/health", response_model=HealthResponse)(_health_endpoint)
     app.get("/health/ready", response_model=HealthResponse)(_readiness_endpoint)
+    app.get("/metrics", response_model=MetricsResponse)(_metrics_endpoint)
 
     return app
 
@@ -411,16 +422,68 @@ async def _session_delete_endpoint(
 
 async def _health_endpoint(
     metadata: MetadataRepository = Depends(get_metadata),
+    config: DataAgentConfig = Depends(get_config),
 ) -> HealthResponse:
     checks: dict[str, str] = {}
+
+    # Metadata catalog
     try:
         tables = metadata.tables()
         checks["metadata_tables"] = f"ok ({len(tables)} tables)"
     except Exception as exc:
         checks["metadata_tables"] = f"fail: {exc}"
 
-    status = "ok" if all(v.startswith("ok") for v in checks.values()) else "degraded"
+    # DuckDB (pocket mode)
+    try:
+        import duckdb as _duckdb
+        conn = _duckdb.connect(":memory:")
+        conn.execute("SELECT 1")
+        conn.close()
+        checks["duckdb"] = "ok"
+    except Exception as exc:
+        checks["duckdb"] = f"fail: {exc}"
+
+    # SQLite session storage
+    try:
+        import sqlite3 as _sqlite3
+        conn2 = _sqlite3.connect(":memory:")
+        conn2.execute("SELECT sqlite_version()")
+        conn2.close()
+        checks["sqlite"] = "ok"
+    except Exception as exc:
+        checks["sqlite"] = f"fail: {exc}"
+
+    # Milvus (optional — skip if not configured)
+    milvus_uri = getattr(config, "milvus_uri", None)
+    if milvus_uri:
+        try:
+            from pymilvus import MilvusClient as _MilvusClient
+            client = _MilvusClient(uri=milvus_uri)
+            client.close()
+            checks["milvus"] = "ok"
+        except Exception as exc:
+            checks["milvus"] = f"fail: {exc}"
+    else:
+        checks["milvus"] = "skip (not configured)"
+
+    status = "ok" if all(v.startswith(("ok", "skip")) for v in checks.values()) else "degraded"
     return HealthResponse(status=status, checks=checks)
+
+
+async def _metrics_endpoint(
+    request: "Request",
+) -> MetricsResponse:
+    m = request.app.state.metrics
+    total = m["total_queries"] + m["total_agent_queries"]
+    avg = m["elapsed_sum_ms"] / total if total > 0 else 0.0
+    return MetricsResponse(
+        total_queries=m["total_queries"],
+        total_agent_queries=m["total_agent_queries"],
+        total_errors=m["total_errors"],
+        avg_elapsed_ms=round(avg, 1),
+        sql_guard_rejections=m["sql_guard_rejections"],
+        uptime_seconds=round(time.monotonic() - m["started_at"], 1),
+    )
 
 
 def _audit_record(

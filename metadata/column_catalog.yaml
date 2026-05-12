@@ -1,0 +1,311 @@
+description: DWD 核心明细表字段注释目录
+
+tables:
+  # ──────────────────────────────────────────────────────────────
+  - table: dwd.dwd_patient
+    comment: 患者主索引表，每个自然人一条记录
+    partition_key: etl_date
+    primary_key: mpi_id
+    columns:
+      - name: mpi_id
+        type: VARCHAR(40)
+        comment: 主索引患者ID，全院唯一，用于跨系统患者去重
+        sensitive: false
+        is_pk: true
+      - name: patient_name
+        type: VARCHAR(50)
+        comment: 患者姓名
+        sensitive: true
+      - name: gender
+        type: CHAR(1)
+        comment: "性别（M=男, F=女, U=未知）"
+        sensitive: false
+      - name: birth_date
+        type: DATE
+        comment: 出生日期（精确到日）
+        sensitive: false
+      - name: id_card
+        type: VARCHAR(20)
+        comment: 身份证号（已脱敏，存储哈希值）
+        sensitive: true
+      - name: phone
+        type: VARCHAR(20)
+        comment: 联系电话（已脱敏）
+        sensitive: true
+      - name: address
+        type: VARCHAR(200)
+        comment: 家庭住址
+        sensitive: true
+      - name: source_system
+        type: VARCHAR(20)
+        comment: "数据来源系统（HIS/EMR/CIS）"
+        sensitive: false
+      - name: etl_date
+        type: DATE
+        comment: ETL 数据日期（分区键）
+        sensitive: false
+
+  # ──────────────────────────────────────────────────────────────
+  - table: dwd.dwd_visit
+    comment: 就诊记录表，住院/门诊/急诊每次就诊一条记录
+    partition_key: visit_date
+    primary_key: visit_id
+    columns:
+      - name: visit_id
+        type: VARCHAR(40)
+        comment: 就诊ID，平台生成的全局唯一就诊标识
+        sensitive: false
+        is_pk: true
+      - name: visit_sn
+        type: VARCHAR(40)
+        comment: 就诊流水号，来自HIS的原始编号（同一患者多次就诊可能重复）
+        sensitive: false
+      - name: mpi_id
+        type: VARCHAR(40)
+        comment: 关联患者主索引ID（外键 → dwd_patient.mpi_id）
+        sensitive: false
+      - name: visit_type
+        type: VARCHAR(10)
+        comment: "就诊类型（住院/门诊/急诊）"
+        sensitive: false
+      - name: dept_code
+        type: VARCHAR(20)
+        comment: 科室编码（外键 → dim_dept_dict.dept_code）
+        sensitive: false
+      - name: doctor_code
+        type: VARCHAR(20)
+        comment: 接诊医生编码
+        sensitive: false
+      - name: admit_date
+        type: DATETIME
+        comment: 入院时间（仅住院有值）
+        sensitive: false
+      - name: discharge_date
+        type: DATETIME
+        comment: 出院时间（仅住院有值）
+        sensitive: false
+      - name: visit_date
+        type: DATE
+        comment: 就诊日期（分区键）
+        sensitive: false
+      - name: hospital_code
+        type: VARCHAR(20)
+        comment: 院区编码（多院区场景区分）
+        sensitive: false
+
+  # ──────────────────────────────────────────────────────────────
+  - table: dwd.dwd_diagnosis
+    comment: 诊断记录表，每次就诊可有多条诊断
+    partition_key: visit_date
+    primary_key: diag_id
+    columns:
+      - name: diag_id
+        type: VARCHAR(40)
+        comment: 诊断记录ID
+        sensitive: false
+        is_pk: true
+      - name: visit_id
+        type: VARCHAR(40)
+        comment: 关联就诊ID（外键 → dwd_visit.visit_id）
+        sensitive: false
+      - name: mpi_id
+        type: VARCHAR(40)
+        comment: 关联患者ID（冗余字段，便于直接过滤）
+        sensitive: false
+      - name: diagnosis_code
+        type: VARCHAR(20)
+        comment: ICD-10 诊断编码（如 C34.1）
+        sensitive: false
+      - name: diagnosis_name
+        type: VARCHAR(200)
+        comment: 诊断名称
+        sensitive: false
+      - name: diagnosis_type
+        type: VARCHAR(20)
+        comment: "诊断类型（主诊断/次诊断/入院诊断/出院诊断）"
+        sensitive: false
+      - name: visit_date
+        type: DATE
+        comment: 就诊日期（分区键，冗余自 dwd_visit）
+        sensitive: false
+
+  # ──────────────────────────────────────────────────────────────
+  - table: dwd.dwd_order
+    comment: 医嘱记录表，包含药品医嘱和非药品医嘱
+    partition_key: order_date
+    primary_key: order_id
+    columns:
+      - name: order_id
+        type: VARCHAR(40)
+        comment: 医嘱ID
+        sensitive: false
+        is_pk: true
+      - name: visit_id
+        type: VARCHAR(40)
+        comment: 关联就诊ID（外键 → dwd_visit.visit_id）
+        sensitive: false
+      - name: mpi_id
+        type: VARCHAR(40)
+        comment: 关联患者ID（冗余字段）
+        sensitive: false
+      - name: drug_code
+        type: VARCHAR(20)
+        comment: 药品编码（外键 → dim_drug_dict.drug_code）
+        sensitive: false
+      - name: drug_expense
+        type: DECIMAL(12,2)
+        comment: 医嘱药品费用（含退药，需过滤 order_status=CANCELLED）
+        sensitive: false
+      - name: order_status
+        type: VARCHAR(20)
+        comment: "医嘱状态（ACTIVE/CANCELLED/COMPLETED）"
+        sensitive: false
+      - name: order_date
+        type: DATE
+        comment: 医嘱日期（分区键）
+        sensitive: false
+      - name: doctor_code
+        type: VARCHAR(20)
+        comment: 开立医生编码
+        sensitive: false
+      - name: dept_code
+        type: VARCHAR(20)
+        comment: 开单科室编码
+        sensitive: false
+
+  # ──────────────────────────────────────────────────────────────
+  - table: dwd.dwd_expense_detail
+    comment: 费用明细表，每条收费项目一条记录
+    partition_key: expense_date
+    primary_key: expense_id
+    columns:
+      - name: expense_id
+        type: VARCHAR(40)
+        comment: 费用明细ID
+        sensitive: false
+        is_pk: true
+      - name: visit_id
+        type: VARCHAR(40)
+        comment: 关联就诊ID（外键 → dwd_visit.visit_id）
+        sensitive: false
+      - name: mpi_id
+        type: VARCHAR(40)
+        comment: 关联患者ID（冗余字段）
+        sensitive: false
+      - name: order_id
+        type: VARCHAR(40)
+        comment: 关联医嘱ID（可为空，部分费用无医嘱来源）
+        sensitive: false
+      - name: expense_category
+        type: VARCHAR(20)
+        comment: "费用大类（DRUG=药品费 / EXAM=检查费 / SURGERY=手术费 / OTHER=其他）"
+        sensitive: false
+      - name: expense_amount
+        type: DECIMAL(12,2)
+        comment: 收费金额（已扣除退费，为实收）
+        sensitive: false
+      - name: dept_code
+        type: VARCHAR(20)
+        comment: 收费科室编码
+        sensitive: false
+      - name: expense_date
+        type: DATE
+        comment: 收费日期（分区键）
+        sensitive: false
+
+  # ──────────────────────────────────────────────────────────────
+  - table: dws.dws_tumor_drug_usage_1d
+    comment: 肿瘤药物使用日汇总表，按科室+药品聚合每日医嘱金额和患者数
+    partition_key: stat_date
+    primary_key: ~
+    columns:
+      - name: stat_date
+        type: DATE
+        comment: 统计日期（分区键）
+        sensitive: false
+      - name: dept_code
+        type: VARCHAR(20)
+        comment: 科室编码（外键 → dim_dept_dict.dept_code）
+        sensitive: false
+      - name: drug_code
+        type: VARCHAR(20)
+        comment: 药品编码（外键 → dim_drug_dict.drug_code）
+        sensitive: false
+      - name: drug_expense_total
+        type: DECIMAL(14,2)
+        comment: 当日该药品该科室的医嘱总金额（已剔除 CANCELLED 医嘱）
+        sensitive: false
+      - name: order_count
+        type: INTEGER
+        comment: 医嘱条数
+        sensitive: false
+      - name: patient_count
+        type: INTEGER
+        comment: 使用该药品的去重患者数（按 mpi_id 去重）
+        sensitive: false
+
+  # ──────────────────────────────────────────────────────────────
+  - table: ads.ads_drug_usage_trend
+    comment: 抗肿瘤药物使用趋势应用层宽表，按月汇总，用于大屏和报告
+    partition_key: stat_month
+    primary_key: ~
+    columns:
+      - name: stat_month
+        type: VARCHAR(7)
+        comment: 统计月份（格式 YYYY-MM，如 2025-01）
+        sensitive: false
+      - name: dept_code
+        type: VARCHAR(20)
+        comment: 科室编码
+        sensitive: false
+      - name: drug_category
+        type: VARCHAR(30)
+        comment: 药品大类（如 CHEMOTHERAPY / TARGETED / IMMUNOTHERAPY）
+        sensitive: false
+      - name: drug_expense_total
+        type: DECIMAL(16,2)
+        comment: 月度药品费用合计
+        sensitive: false
+      - name: patient_count
+        type: INTEGER
+        comment: 月度使用患者数（去重）
+        sensitive: false
+      - name: mom_growth_rate
+        type: DECIMAL(8,4)
+        comment: 环比增长率（当月/上月 - 1），NULL 表示无上月数据
+        sensitive: false
+      - name: yoy_growth_rate
+        type: DECIMAL(8,4)
+        comment: 同比增长率（当月/去年同月 - 1）
+        sensitive: false
+
+  # ──────────────────────────────────────────────────────────────
+  - table: ads.ads_dq_result_summary
+    comment: 数据质量检查结果汇总表，每日每规则一条记录
+    partition_key: stat_date
+    primary_key: ~
+    columns:
+      - name: stat_date
+        type: DATE
+        comment: 检查日期（分区键）
+        sensitive: false
+      - name: table_name
+        type: VARCHAR(100)
+        comment: 被检查的表名（含 Schema，如 dwd.dwd_diagnosis）
+        sensitive: false
+      - name: rule_code
+        type: VARCHAR(20)
+        comment: DQ 规则编码（如 DQ-010 = 诊断编码缺失率）
+        sensitive: false
+      - name: issue_count
+        type: INTEGER
+        comment: 当日该规则检出的问题记录数
+        sensitive: false
+      - name: pass_rate
+        type: DECIMAL(5,4)
+        comment: 通过率（0.0000-1.0000），1.0000 表示无问题
+        sensitive: false
+      - name: check_sql
+        type: VARCHAR(2000)
+        comment: 执行检查的 SQL 快照（便于复现）
+        sensitive: false

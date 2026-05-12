@@ -1,0 +1,259 @@
+questions:
+  # ── 抗肿瘤药物 ──────────────────────────────────────────────────────────────
+  - id: q001
+    domain: drug
+    difficulty: easy
+    question: 统计本月各科室抗肿瘤药物使用金额。
+    expected_tables: [dws.dws_tumor_drug_usage_1d, dim.dim_dept_dict]
+    expected_metrics: [antitumor_drug_amount]
+    expected_fields: [dept_code, dept_name, stat_month]
+
+  - id: q002
+    domain: tumor
+    difficulty: easy
+    question: 统计最近一个月肺癌患者住院人次。
+    expected_tables: [dwd.dwd_visit, dwd.dwd_diagnosis]
+    expected_metrics: [inpatient_visit_count]
+    expected_fields: [diagnosis_code, visit_type, visit_date]
+
+  - id: q003
+    domain: drug
+    difficulty: medium
+    question: 查询本月抗肿瘤药物费用环比增长最高的科室。
+    expected_tables: [dws.dws_tumor_drug_usage_1d, dim.dim_dept_dict]
+    expected_metrics: [antitumor_drug_amount, department_expense_mom_growth_rate]
+    expected_fields: [dept_code, dept_name, stat_month]
+
+  - id: q004
+    domain: dq
+    difficulty: easy
+    question: 本周 DQ 问题最多的表有哪些？
+    expected_tables: [ads.ads_dq_result_summary]
+    expected_metrics: [dq_issue_count]
+    expected_fields: [table_name, severity]
+
+  - id: q005
+    domain: mpi
+    difficulty: easy
+    question: 最近 7 天 MPI 覆盖率趋势如何？
+    expected_tables: [dws.dws_mpi_quality_1d]
+    expected_metrics: [mpi_coverage_rate]
+    expected_fields: [stat_date]
+
+  - id: q006
+    domain: expense
+    difficulty: medium
+    question: 按科室统计本月住院费用总额和药费占比。
+    expected_tables: [dws.dws_expense_summary_1d, dim.dim_dept_dict]
+    expected_metrics: [department_expense_mom_growth_rate]
+    expected_fields: [dept_code, dept_name, stat_month]
+
+  - id: q007
+    domain: drug
+    difficulty: easy
+    question: 查询抗肿瘤药物使用金额 TOP 10 药品。
+    expected_tables: [dws.dws_tumor_drug_usage_1d, dim.dim_drug_dict]
+    expected_metrics: [antitumor_drug_amount]
+    expected_fields: [drug_code, drug_name]
+
+  - id: q008
+    domain: tumor
+    difficulty: medium
+    question: 统计本月肺癌患者抗肿瘤药物使用金额。
+    expected_tables: [dwd.dwd_diagnosis, dwd.dwd_order, dim.dim_drug_dict]
+    expected_metrics: [lung_cancer_patient_count, antitumor_drug_amount]
+    expected_fields: [diagnosis_code, drug_category]
+
+  - id: q009
+    domain: quality
+    difficulty: easy
+    question: 本月住院质量看板的平均住院天数按科室分布如何？
+    expected_tables: [ads.ads_inpatient_quality_board]
+    expected_metrics: []
+    expected_fields: [dept_code, dept_name, stat_month]
+
+  - id: q010
+    domain: dq
+    difficulty: easy
+    question: 查询 HIGH 及以上严重等级的数据质量问题数量。
+    expected_tables: [ads.ads_dq_result_summary]
+    expected_metrics: [dq_issue_count]
+    expected_fields: [severity]
+
+  - id: q011
+    domain: mpi
+    difficulty: medium
+    question: 哪些来源系统的 MPI 覆盖率低于 95%？
+    expected_tables: [dws.dws_mpi_quality_1d]
+    expected_metrics: [mpi_coverage_rate]
+    expected_fields: [source_system]
+
+  - id: q012
+    domain: expense
+    difficulty: easy
+    question: 按瘤种统计本月费用结构。
+    expected_tables: [ads.ads_expense_by_tumor_type]
+    expected_metrics: []
+    expected_fields: [tumor_type, expense_category, stat_month]
+
+  - id: q013
+    domain: drug
+    difficulty: easy
+    question: 本月各科室抗肿瘤药物使用人次是多少？
+    expected_tables: [dws.dws_tumor_drug_usage_1d, dim.dim_dept_dict]
+    expected_metrics: [antitumor_drug_amount]
+    expected_fields: [dept_code, dept_name]
+
+  - id: q014
+    domain: dq
+    difficulty: medium
+    question: 诊断编码映射失败的 DQ 规则影响哪些表？
+    expected_tables: [dwd.dwd_diagnosis, dim.dim_diagnosis_dict]
+    expected_metrics: []
+    expected_fields: [rule_code, diagnosis_code]
+
+  - id: q015
+    domain: drug
+    difficulty: easy
+    question: 抗肿瘤药物目录通过哪个字段识别？
+    expected_tables: [dim.dim_drug_dict]
+    expected_metrics: []
+    expected_fields: [drug_category]
+
+  - id: q016
+    domain: visit
+    difficulty: easy
+    question: visit_id 和 visit_sn 在就诊分析中分别怎么使用？
+    expected_tables: [dwd.dwd_visit]
+    expected_metrics: []
+    expected_fields: [visit_id, visit_sn]
+
+  - id: q017
+    domain: dq
+    difficulty: medium
+    question: 患者 ID 为空会影响哪些 DWD 表？
+    expected_tables: [dwd.dwd_patient, dwd.dwd_visit, dwd.dwd_diagnosis]
+    expected_metrics: []
+    expected_fields: [mpi_id]
+
+  - id: q018
+    domain: lineage
+    difficulty: medium
+    question: 抗肿瘤药物使用趋势看板的数据血缘是什么？
+    expected_tables:
+      - ods.ods_inpatient_order
+      - dwd.dwd_order
+      - dws.dws_tumor_drug_usage_1d
+      - ads.ads_drug_usage_trend
+    expected_metrics: [antitumor_drug_amount]
+    expected_fields: []
+
+  - id: q019
+    domain: lineage
+    difficulty: easy
+    question: DQ 监控看板依赖哪些质量结果表？
+    expected_tables:
+      - dq.dq_check_result
+      - dq.dq_issue_detail
+      - ads.ads_dq_result_summary
+    expected_metrics: [dq_issue_count]
+    expected_fields: []
+
+  - id: q020
+    domain: agent
+    difficulty: hard
+    question: 本月肺癌患者抗肿瘤药物费用异常增长的科室有哪些，并建议下钻维度。
+    expected_tables:
+      - dwd.dwd_diagnosis
+      - dwd.dwd_visit
+      - dwd.dwd_order
+      - dim.dim_drug_dict
+      - dim.dim_dept_dict
+    expected_metrics:
+      - lung_cancer_patient_count
+      - antitumor_drug_amount
+      - department_expense_mom_growth_rate
+    expected_fields: [dept_code, dept_name, drug_code, mpi_id]
+
+  # ── 异常检测 ────────────────────────────────────────────────────────────────
+  - id: q021
+    domain: dq
+    difficulty: medium
+    question: 统计入院时间晚于出院时间的住院记录数。
+    expected_tables: [dwd.dwd_visit]
+    expected_metrics: []
+    expected_fields: [admit_date, discharge_date, visit_type]
+
+  - id: q022
+    domain: dq
+    difficulty: medium
+    question: 统计医嘱没有关联就诊的记录数。
+    expected_tables: [dwd.dwd_order, dwd.dwd_visit]
+    expected_metrics: []
+    expected_fields: [visit_id, order_id]
+
+  - id: q023
+    domain: dq
+    difficulty: medium
+    question: 统计费用明细没有关联患者 mpi_id 的记录数。
+    expected_tables: [dwd.dwd_expense_detail]
+    expected_metrics: []
+    expected_fields: [mpi_id, expense_date]
+
+  - id: q024
+    domain: dq
+    difficulty: easy
+    question: 统计诊断编码为空的记录数。
+    expected_tables: [dwd.dwd_diagnosis]
+    expected_metrics: []
+    expected_fields: [diagnosis_code, visit_date]
+
+  - id: q025
+    domain: dq
+    difficulty: easy
+    question: 统计患者 mpi_id 为空的就诊记录数及占比。
+    expected_tables: [dwd.dwd_visit]
+    expected_metrics: []
+    expected_fields: [mpi_id, visit_date]
+
+  # ── 科室 / 医生维度 ─────────────────────────────────────────────────────────
+  - id: q026
+    domain: expense
+    difficulty: medium
+    question: 统计各科室本月药品费用排名。
+    expected_tables: [dwd.dwd_expense_detail, dim.dim_dept_dict]
+    expected_metrics: []
+    expected_fields: [dept_code, dept_name, expense_amount, expense_category]
+
+  - id: q027
+    domain: drug
+    difficulty: medium
+    question: 统计各医生本月开立抗肿瘤药物次数。
+    expected_tables: [dwd.dwd_order, dim.dim_drug_dict]
+    expected_metrics: []
+    expected_fields: [doctor_code, drug_category, order_date]
+
+  - id: q028
+    domain: quality
+    difficulty: easy
+    question: 统计各科室本月住院天数分布（平均、最大、最小）。
+    expected_tables: [ads.ads_inpatient_quality_board]
+    expected_metrics: []
+    expected_fields: [dept_name, avg_inpatient_days, stat_month]
+
+  # ── 患者统计 ────────────────────────────────────────────────────────────────
+  - id: q029
+    domain: patient
+    difficulty: easy
+    question: 统计本月门诊和住院患者数（分别统计）。
+    expected_tables: [dwd.dwd_visit]
+    expected_metrics: [inpatient_visit_count]
+    expected_fields: [visit_type, mpi_id, visit_date]
+
+  - id: q030
+    domain: tumor
+    difficulty: medium
+    question: 统计乳腺癌患者中使用靶向药物的人数。
+    expected_tables: [dwd.dwd_diagnosis, dwd.dwd_order, dim.dim_drug_dict]
+    expected_metrics: []
+    expected_fields: [diagnosis_code, drug_category, mpi_id]
