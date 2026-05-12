@@ -13,6 +13,7 @@ import yaml
 
 _DEFAULT_QUESTIONS_PATH = Path(__file__).parent / "benchmark_questions.yaml"
 _DEFAULT_REPORT_PATH = Path(__file__).parent / "eval_report.md"
+_REPORTS_DIR = Path(__file__).parent / "reports"
 
 # Schemas the SQL guard is configured with for evaluation
 _EVAL_ALLOWED_SCHEMAS = ["ads", "dws", "dwd", "dim", "dq", "ods"]
@@ -370,6 +371,15 @@ if __name__ == "__main__":
     report_path = _DEFAULT_REPORT_PATH
     report_path.write_text(md, encoding="utf-8")
     print(f"Report written to {report_path}")
+
+    # Auto-archive with timestamp so historical runs are preserved
+    from datetime import datetime
+    _REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    archive_path = _REPORTS_DIR / f"{ts}_{report.eval_run_id[:8]}.md"
+    archive_path.write_text(md, encoding="utf-8")
+    print(f"Archived to  {archive_path}")
+
     print(f"\nSummary: valid={report.summary.sql_valid_rate:.1%}  "
           f"safe={report.summary.sql_safe_rate:.1%}  "
           f"table_match={report.summary.table_match_rate:.1%}")

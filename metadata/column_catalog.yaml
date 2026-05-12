@@ -212,3 +212,100 @@ tables:
         type: DATE
         comment: 收费日期（分区键）
         sensitive: false
+
+  # ──────────────────────────────────────────────────────────────
+  - table: dws.dws_tumor_drug_usage_1d
+    comment: 肿瘤药物使用日汇总表，按科室+药品聚合每日医嘱金额和患者数
+    partition_key: stat_date
+    primary_key: ~
+    columns:
+      - name: stat_date
+        type: DATE
+        comment: 统计日期（分区键）
+        sensitive: false
+      - name: dept_code
+        type: VARCHAR(20)
+        comment: 科室编码（外键 → dim_dept_dict.dept_code）
+        sensitive: false
+      - name: drug_code
+        type: VARCHAR(20)
+        comment: 药品编码（外键 → dim_drug_dict.drug_code）
+        sensitive: false
+      - name: drug_expense_total
+        type: DECIMAL(14,2)
+        comment: 当日该药品该科室的医嘱总金额（已剔除 CANCELLED 医嘱）
+        sensitive: false
+      - name: order_count
+        type: INTEGER
+        comment: 医嘱条数
+        sensitive: false
+      - name: patient_count
+        type: INTEGER
+        comment: 使用该药品的去重患者数（按 mpi_id 去重）
+        sensitive: false
+
+  # ──────────────────────────────────────────────────────────────
+  - table: ads.ads_drug_usage_trend
+    comment: 抗肿瘤药物使用趋势应用层宽表，按月汇总，用于大屏和报告
+    partition_key: stat_month
+    primary_key: ~
+    columns:
+      - name: stat_month
+        type: VARCHAR(7)
+        comment: 统计月份（格式 YYYY-MM，如 2025-01）
+        sensitive: false
+      - name: dept_code
+        type: VARCHAR(20)
+        comment: 科室编码
+        sensitive: false
+      - name: drug_category
+        type: VARCHAR(30)
+        comment: 药品大类（如 CHEMOTHERAPY / TARGETED / IMMUNOTHERAPY）
+        sensitive: false
+      - name: drug_expense_total
+        type: DECIMAL(16,2)
+        comment: 月度药品费用合计
+        sensitive: false
+      - name: patient_count
+        type: INTEGER
+        comment: 月度使用患者数（去重）
+        sensitive: false
+      - name: mom_growth_rate
+        type: DECIMAL(8,4)
+        comment: 环比增长率（当月/上月 - 1），NULL 表示无上月数据
+        sensitive: false
+      - name: yoy_growth_rate
+        type: DECIMAL(8,4)
+        comment: 同比增长率（当月/去年同月 - 1）
+        sensitive: false
+
+  # ──────────────────────────────────────────────────────────────
+  - table: ads.ads_dq_result_summary
+    comment: 数据质量检查结果汇总表，每日每规则一条记录
+    partition_key: stat_date
+    primary_key: ~
+    columns:
+      - name: stat_date
+        type: DATE
+        comment: 检查日期（分区键）
+        sensitive: false
+      - name: table_name
+        type: VARCHAR(100)
+        comment: 被检查的表名（含 Schema，如 dwd.dwd_diagnosis）
+        sensitive: false
+      - name: rule_code
+        type: VARCHAR(20)
+        comment: DQ 规则编码（如 DQ-010 = 诊断编码缺失率）
+        sensitive: false
+      - name: issue_count
+        type: INTEGER
+        comment: 当日该规则检出的问题记录数
+        sensitive: false
+      - name: pass_rate
+        type: DECIMAL(5,4)
+        comment: 通过率（0.0000-1.0000），1.0000 表示无问题
+        sensitive: false
+      - name: check_sql
+        type: VARCHAR(2000)
+        comment: 执行检查的 SQL 快照（便于复现）
+        sensitive: false

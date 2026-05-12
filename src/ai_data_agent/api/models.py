@@ -85,3 +85,12 @@ class SessionDeleteResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     checks: dict[str, str] = Field(default_factory=dict)
+
+
+class MetricsResponse(BaseModel):
+    total_queries: int = 0
+    total_agent_queries: int = 0
+    total_errors: int = 0
+    avg_elapsed_ms: float = 0.0
+    sql_guard_rejections: int = 0
+    uptime_seconds: float = 0.0
