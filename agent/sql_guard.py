@@ -16,7 +16,12 @@ WHITELIST = set(
 
 # sqlglot 会把 SQL 解析成一棵语法树。
 # 下面这些类型表示写入或修改数据库的操作，例如 INSERT、UPDATE、DELETE、DROP 等。
-FORBIDDEN_TYPES = {exp.Insert, exp.Update, exp.Delete, exp.Drop, exp.Alter, exp.Create, exp.TruncateTable}
+# 不同 sqlglot 版本暴露的 DDL 节点名略有差异，所以这里按名称安全收集。
+FORBIDDEN_TYPES = tuple(
+    node_type
+    for node_name in ("Insert", "Update", "Delete", "Drop", "Alter", "Create", "TruncateTable")
+    if (node_type := getattr(exp, node_name, None)) is not None
+)
 
 # 这里是字符串级别的快速检查。
 # 只要 SQL 文本里出现这些危险关键字，就先拒绝。
@@ -63,7 +68,7 @@ def validate(sql: str) -> dict:
     # 检查语法树里是否包含写操作节点。
     # ast.walk() 会遍历 SQL 里的所有语法节点。
     for node in ast.walk():
-        if isinstance(node, tuple(FORBIDDEN_TYPES)):
+        if isinstance(node, FORBIDDEN_TYPES):
             return {"valid": False, "reason": f"禁止执行写操作"}
 
     # 禁止 SELECT *。
