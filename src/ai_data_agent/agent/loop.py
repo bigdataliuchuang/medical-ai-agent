@@ -14,6 +14,37 @@ from ai_data_agent.executor.doris import DorisQueryResult
 from ai_data_agent.graphrag.context_builder import TextToSqlContext
 from ai_data_agent.text2sql.llm import LlmClient, LlmResponse, ToolDefinition
 
+# Repair hint injected into the message stream after a failed validate_sql call
+_REPAIR_HINTS: dict[str, str] = {
+    "sensitive": (
+        "【修复提示】SQL 包含敏感字段（如 id_card / phone / patient_name）。"
+        "请重新调用 generate_sql，将敏感字段从 SELECT 列表和 WHERE 条件中全部移除。"
+    ),
+    "select_star": (
+        "【修复提示】SQL 使用了 SELECT *，不符合安全规则。"
+        "请重新调用 generate_sql，明确列出需要的字段名，不要使用通配符。"
+    ),
+    "limit": (
+        "【修复提示】SQL 缺少 LIMIT 子句。"
+        "请重新调用 generate_sql，在 SQL 末尾添加 LIMIT 100（或更小的值）。"
+    ),
+    "schema": (
+        "【修复提示】表名缺少 Schema 限定（如 dwd.dwd_order）或使用了不允许的 Schema。"
+        "请重新调用 generate_sql，确保所有表名都带有 Schema 前缀。"
+    ),
+    "dangerous": (
+        "【修复提示】SQL 包含危险关键词（DROP / DELETE / UPDATE 等），不允许执行。"
+        "请只生成 SELECT 查询。"
+    ),
+    "syntax": (
+        "【修复提示】SQL 语法错误，无法解析。"
+        "请重新调用 generate_sql，生成语法正确的 SQL。"
+    ),
+    "default": (
+        "【修复提示】SQL 未通过安全校验。请根据上方 reasons 中的原因重新调用 generate_sql 修复 SQL。"
+    ),
+}
+
 
 _DEFAULT_SYSTEM_PROMPT = (
     "你是医疗数据治理平台的 Data Agent，负责回答用户的数据分析问题。\n"
@@ -200,6 +231,12 @@ class ReActAgent:
                     }
                 )
 
+                # After a failed validate_sql, inject a targeted repair hint so the
+                # LLM knows exactly what to fix rather than guessing from the raw reasons.
+                if tc.name == "validate_sql" and not tool_result.success:
+                    hint = _build_repair_hint(tool_result.output)
+                    messages.append({"role": "user", "content": hint})
+
         # Max steps reached
         return AgentTrace(
             request_id=request_id,
@@ -269,3 +306,37 @@ class ReActAgent:
             if step.action == "execute_sql" and step.action_input:
                 return step.action_input.get("sql")
         return None
+
+
+# ---------------------------------------------------------------------------
+# Repair hint builder
+# ---------------------------------------------------------------------------
+
+def _build_repair_hint(validate_sql_output: str) -> str:
+    """Build a targeted repair hint from a failed validate_sql observation.
+
+    Parses the JSON output of ValidateSqlTool and picks the most specific hint
+    from _REPAIR_HINTS so the LLM knows exactly what to fix next.
+    """
+    try:
+        data = json.loads(validate_sql_output)
+        reasons: list[str] = data.get("reasons", [])
+    except (json.JSONDecodeError, TypeError):
+        return _REPAIR_HINTS["default"]
+
+    combined = " ".join(reasons).lower()
+
+    if any(sf in combined for sf in ("sensitive", "id_card", "phone", "patient_name", "敏感")):
+        return _REPAIR_HINTS["sensitive"]
+    if "select *" in combined or "select * is not allowed" in combined:
+        return _REPAIR_HINTS["select_star"]
+    if "limit" in combined:
+        return _REPAIR_HINTS["limit"]
+    if "schema" in combined or "schema-qualified" in combined or "schema is not allowed" in combined:
+        return _REPAIR_HINTS["schema"]
+    if any(kw in combined for kw in ("drop", "delete", "update", "insert", "dangerous", "keyword")):
+        return _REPAIR_HINTS["dangerous"]
+    if "parse" in combined or "syntax" in combined:
+        return _REPAIR_HINTS["syntax"]
+
+    return _REPAIR_HINTS["default"]

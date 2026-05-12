@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ai_data_agent.graphrag.embedding import EmbeddingClient
 
 # Default location relative to the project root
 _DEFAULT_SKILLS_DIR = Path(__file__).parent.parent.parent.parent / "skills"
@@ -86,8 +91,76 @@ def load_all_skills(skills_dir: str | Path | None = None) -> list[Skill]:
     return skills
 
 
-def match_skill(question: str, skills: list[Skill]) -> Skill | None:
-    """Return the best-matching skill for the question, or None if no match."""
+def match_skill(
+    question: str,
+    skills: list[Skill],
+    embedding_client: "EmbeddingClient | None" = None,
+    similarity_threshold: float = 0.50,
+) -> Skill | None:
+    """Return the best-matching skill for the question, or None if no match.
+
+    When *embedding_client* is provided the match is done via cosine similarity
+    of question vs. skill-name + keywords embeddings (better recall for paraphrases).
+    Without an embedding client the original keyword-overlap heuristic is used.
+    """
+    if not skills:
+        return None
+    if embedding_client is not None:
+        return _match_by_embedding(question, skills, embedding_client, similarity_threshold)
+    return _match_by_keywords(question, skills)
+
+
+# ---------------------------------------------------------------------------
+# SkillMatcher — stateful wrapper that caches skill embeddings
+# ---------------------------------------------------------------------------
+
+class SkillMatcher:
+    """Matches questions to skills, caching skill embeddings across calls.
+
+    Usage::
+
+        matcher = SkillMatcher(skills, embedding_client=client)
+        skill = matcher.match("肺癌患者本月药费统计")
+    """
+
+    def __init__(
+        self,
+        skills: list[Skill],
+        embedding_client: "EmbeddingClient | None" = None,
+        similarity_threshold: float = 0.50,
+    ) -> None:
+        self._skills = skills
+        self._embedding_client = embedding_client
+        self._threshold = similarity_threshold
+        self._skill_embeddings: list[list[float]] | None = None
+
+    def match(self, question: str) -> Skill | None:
+        if self._embedding_client is None:
+            return _match_by_keywords(question, self._skills)
+        self._ensure_embeddings()
+        q_vec = self._embedding_client.embed_texts([question])[0]
+        best_score, best_skill = -1.0, None
+        for skill, s_vec in zip(self._skills, self._skill_embeddings or []):  # type: ignore[arg-type]
+            score = _cosine(q_vec, s_vec)
+            if score > best_score:
+                best_score, best_skill = score, skill
+        if best_score >= self._threshold:
+            return best_skill
+        return None
+
+    def _ensure_embeddings(self) -> None:
+        if self._skill_embeddings is not None:
+            return
+        assert self._embedding_client is not None
+        texts = [f"{s.name} {' '.join(s.keywords)}" for s in self._skills]
+        self._skill_embeddings = self._embedding_client.embed_texts(texts)
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+def _match_by_keywords(question: str, skills: list[Skill]) -> Skill | None:
     scored = [
         (skill.keyword_overlap(question), skill)
         for skill in skills
@@ -97,6 +170,34 @@ def match_skill(question: str, skills: list[Skill]) -> Skill | None:
         return None
     scored.sort(key=lambda x: -x[0])
     return scored[0][1]
+
+
+def _match_by_embedding(
+    question: str,
+    skills: list[Skill],
+    client: "EmbeddingClient",
+    threshold: float,
+) -> Skill | None:
+    skill_texts = [f"{s.name} {' '.join(s.keywords)}" for s in skills]
+    all_vecs = client.embed_texts([question] + skill_texts)
+    q_vec, skill_vecs = all_vecs[0], all_vecs[1:]
+    best_score, best_skill = -1.0, None
+    for skill, s_vec in zip(skills, skill_vecs):
+        score = _cosine(q_vec, s_vec)
+        if score > best_score:
+            best_score, best_skill = score, skill
+    if best_skill is not None and best_score >= threshold:
+        return best_skill
+    return None
+
+
+def _cosine(a: list[float], b: list[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = math.sqrt(sum(x * x for x in a))
+    norm_b = math.sqrt(sum(x * x for x in b))
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return dot / (norm_a * norm_b)
 
 
 def inject_skill_into_prompt(system_prompt: str, skill: Skill) -> str:

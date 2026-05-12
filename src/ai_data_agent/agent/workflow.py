@@ -12,7 +12,7 @@ from ai_data_agent.agent.loop import AgentTrace, ReActAgent
 from ai_data_agent.agent.memory import ConversationMemory, ConversationTurn
 from ai_data_agent.agent.planner import TaskPlanner
 from ai_data_agent.agent.scheduler import SchedulerResult, TaskScheduler
-from ai_data_agent.agent.skill_loader import Skill, inject_skill_into_prompt, load_all_skills, match_skill
+from ai_data_agent.agent.skill_loader import Skill, SkillMatcher, inject_skill_into_prompt, load_all_skills, match_skill
 from ai_data_agent.agent.skill_store import SkillRecord, SkillStore
 
 # Questions containing ≥ this many complexity keywords are routed through the planner.
@@ -60,6 +60,8 @@ class AgentWorkflow:
         confidence_scorer: ConfidenceScorer | None = None,
         complexity_threshold: int = _COMPLEXITY_THRESHOLD,
         skills_dir: str | None = None,
+        min_confidence_to_save: float = 0.7,
+        skill_matcher: SkillMatcher | None = None,
     ) -> None:
         self._agent = agent
         self._planner = planner
@@ -68,7 +70,9 @@ class AgentWorkflow:
         self._skill_store = skill_store
         self._scorer = confidence_scorer or ConfidenceScorer()
         self._complexity_threshold = complexity_threshold
-        self._skills = load_all_skills(skills_dir)
+        self._min_confidence_to_save = min_confidence_to_save
+        skills = load_all_skills(skills_dir)
+        self._skill_matcher = skill_matcher or SkillMatcher(skills)
 
     def run(
         self,
@@ -121,7 +125,7 @@ class AgentWorkflow:
         started: float,
     ) -> WorkflowResult:
         # Layer 4 (skill): temporarily inject matched SOP into the agent's system prompt
-        matched_skill = match_skill(question, self._skills)
+        matched_skill = self._skill_matcher.match(question)
         original_prompt = self._agent._system_prompt
         if matched_skill is not None:
             self._agent._system_prompt = inject_skill_into_prompt(
@@ -147,7 +151,8 @@ class AgentWorkflow:
             self._memory.save_turn(
                 session_id, question, answer, sql=trace.final_sql, tables_used=tables
             )
-            if trace.final_sql:
+            # Gate skill accumulation by confidence — avoid persisting low-quality patterns
+            if trace.final_sql and confidence is not None and confidence.overall >= self._min_confidence_to_save:
                 self._skill_store.save_skill(
                     question=question,
                     sql=trace.final_sql,
