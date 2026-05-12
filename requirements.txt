@@ -7,4 +7,5 @@ sqlglot==23.0.0
 python-dotenv==1.0.0
 pydantic==2.7.0
 pymilvus==2.4.0
+marshmallow<4
 pyyaml==6.0.1
