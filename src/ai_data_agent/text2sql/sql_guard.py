@@ -90,6 +90,10 @@ class SqlGuard:
         guard._config = config
         return guard
 
+    @property
+    def allowed_schemas(self) -> frozenset[str]:
+        return self._config.allowed_schemas
+
     def validate(self, sql: str) -> SqlGuardResult:
         cfg = self._config
 
