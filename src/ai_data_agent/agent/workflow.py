@@ -12,6 +12,7 @@ from ai_data_agent.agent.loop import AgentTrace, ReActAgent
 from ai_data_agent.agent.memory import ConversationMemory, ConversationTurn
 from ai_data_agent.agent.planner import TaskPlanner
 from ai_data_agent.agent.scheduler import SchedulerResult, TaskScheduler
+from ai_data_agent.agent.skill_loader import Skill, inject_skill_into_prompt, load_all_skills, match_skill
 from ai_data_agent.agent.skill_store import SkillRecord, SkillStore
 
 # Questions containing ≥ this many complexity keywords are routed through the planner.
@@ -58,6 +59,7 @@ class AgentWorkflow:
         skill_store: SkillStore,
         confidence_scorer: ConfidenceScorer | None = None,
         complexity_threshold: int = _COMPLEXITY_THRESHOLD,
+        skills_dir: str | None = None,
     ) -> None:
         self._agent = agent
         self._planner = planner
@@ -66,6 +68,7 @@ class AgentWorkflow:
         self._skill_store = skill_store
         self._scorer = confidence_scorer or ConfidenceScorer()
         self._complexity_threshold = complexity_threshold
+        self._skills = load_all_skills(skills_dir)
 
     def run(
         self,
@@ -117,11 +120,22 @@ class AgentWorkflow:
         skill_hit: SkillRecord | None,
         started: float,
     ) -> WorkflowResult:
-        trace = self._agent.run(
-            question,
-            request_id=request_id,
-            conversation_history=history,
-        )
+        # Layer 4 (skill): temporarily inject matched SOP into the agent's system prompt
+        matched_skill = match_skill(question, self._skills)
+        original_prompt = self._agent._system_prompt
+        if matched_skill is not None:
+            self._agent._system_prompt = inject_skill_into_prompt(
+                original_prompt, matched_skill
+            )
+
+        try:
+            trace = self._agent.run(
+                question,
+                request_id=request_id,
+                conversation_history=history,
+            )
+        finally:
+            self._agent._system_prompt = original_prompt
 
         confidence = self._scorer.score(trace)
         elapsed = int((time.monotonic() - started) * 1000)

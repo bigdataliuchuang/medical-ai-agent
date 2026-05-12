@@ -1,0 +1,129 @@
+description: 常见肿瘤及相关疾病 ICD-10 编码字典（dim.dim_diagnosis_dict）
+
+table: dim.dim_diagnosis_dict
+primary_key: icd_code
+fields:
+  - name: icd_code
+    type: VARCHAR(10)
+    comment: ICD-10 编码（如 C34.1）
+    sensitive: false
+  - name: icd_name
+    type: VARCHAR(100)
+    comment: 疾病中文名称
+    sensitive: false
+  - name: tumor_type
+    type: VARCHAR(30)
+    comment: 瘤种分类（如 lung / breast / colorectal）
+    sensitive: false
+  - name: category
+    type: VARCHAR(20)
+    comment: "大类（MALIGNANT=恶性肿瘤 / BENIGN=良性 / OTHER=其他）"
+    sensitive: false
+  - name: icd_version
+    type: VARCHAR(10)
+    comment: ICD 版本（2010 / 2016）
+    sensitive: false
+
+diagnoses:
+  # 肺癌 C34
+  - icd_code: C34
+    icd_name: 支气管和肺的恶性肿瘤
+    tumor_type: lung
+    category: MALIGNANT
+    icd_version: "2016"
+
+  - icd_code: C34.1
+    icd_name: 上叶支气管或肺的恶性肿瘤
+    tumor_type: lung
+    category: MALIGNANT
+    icd_version: "2016"
+
+  - icd_code: C34.2
+    icd_name: 中叶支气管或肺的恶性肿瘤
+    tumor_type: lung
+    category: MALIGNANT
+    icd_version: "2016"
+
+  - icd_code: C34.3
+    icd_name: 下叶支气管或肺的恶性肿瘤
+    tumor_type: lung
+    category: MALIGNANT
+    icd_version: "2016"
+
+  # 乳腺癌 C50
+  - icd_code: C50
+    icd_name: 乳房恶性肿瘤
+    tumor_type: breast
+    category: MALIGNANT
+    icd_version: "2016"
+
+  - icd_code: C50.1
+    icd_name: 乳房中央部的恶性肿瘤
+    tumor_type: breast
+    category: MALIGNANT
+    icd_version: "2016"
+
+  # 结直肠癌 C18-C20
+  - icd_code: C18
+    icd_name: 结肠恶性肿瘤
+    tumor_type: colorectal
+    category: MALIGNANT
+    icd_version: "2016"
+
+  - icd_code: C19
+    icd_name: 直肠乙状结肠连接处恶性肿瘤
+    tumor_type: colorectal
+    category: MALIGNANT
+    icd_version: "2016"
+
+  - icd_code: C20
+    icd_name: 直肠恶性肿瘤
+    tumor_type: colorectal
+    category: MALIGNANT
+    icd_version: "2016"
+
+  # 胃癌 C16
+  - icd_code: C16
+    icd_name: 胃的恶性肿瘤
+    tumor_type: gastric
+    category: MALIGNANT
+    icd_version: "2016"
+
+  # 肝癌 C22
+  - icd_code: C22
+    icd_name: 肝脏和肝内胆管的恶性肿瘤
+    tumor_type: liver
+    category: MALIGNANT
+    icd_version: "2016"
+
+  - icd_code: C22.0
+    icd_name: 肝细胞癌
+    tumor_type: liver
+    category: MALIGNANT
+    icd_version: "2016"
+
+  # 淋巴瘤 C81-C85
+  - icd_code: C83
+    icd_name: 非滤泡性淋巴瘤
+    tumor_type: lymphoma
+    category: MALIGNANT
+    icd_version: "2016"
+
+  - icd_code: C85
+    icd_name: 其他和未特指类型的非霍奇金淋巴瘤
+    tumor_type: lymphoma
+    category: MALIGNANT
+    icd_version: "2016"
+
+  # 白血病 C91-C95
+  - icd_code: C91.0
+    icd_name: 急性淋巴细胞白血病
+    tumor_type: leukemia
+    category: MALIGNANT
+    icd_version: "2016"
+
+  - icd_code: C92.0
+    icd_name: 急性髓细胞白血病
+    tumor_type: leukemia
+    category: MALIGNANT
+    icd_version: "2016"
