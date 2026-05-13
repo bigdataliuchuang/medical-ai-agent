@@ -41,6 +41,7 @@ from ai_data_agent.metadata import MetadataRepository
 from ai_data_agent.semantic_service.api import router as semantic_router
 from ai_data_agent.semantic_service.audit import SQLiteSemanticAuditStore
 from ai_data_agent.semantic_service.catalog import SemanticCatalog
+from ai_data_agent.semantic_service.governance import SQLiteSemanticGovernanceStore
 from ai_data_agent.semantic_service.service import SemanticLayerService
 from ai_data_agent.text2sql.generator import SqlGenerationError
 
@@ -183,6 +184,7 @@ def create_app(config_path: str, metadata_root: str = "ai-data-agent/metadata") 
         semantic_catalog,
         query_executor=app.state.query_services.query_executor,
         audit_store=SQLiteSemanticAuditStore(semantic_audit_path),
+        governance_store=SQLiteSemanticGovernanceStore(semantic_audit_path),
     )
     # In-process counters for /metrics
     app.state.metrics = {

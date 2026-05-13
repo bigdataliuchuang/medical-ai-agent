@@ -143,3 +143,67 @@ def test_semantic_audit_events_include_compile_and_query(client):
     assert response.status_code == 200
     event_types = [item["event_type"] for item in response.json()["items"]]
     assert event_types == ["compile", "query"]
+
+
+def test_semantic_metric_status_update_persists_and_audits(client):
+    response = client.post(
+        "/api/v1/semantic/governance/metrics/antitumor_drug_amount/status",
+        json={
+            "status": "deprecated",
+            "actor": "data-steward",
+            "reason": "口径升级为 v2",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "antitumor_drug_amount"
+    assert response.json()["status"] == "deprecated"
+
+    metrics = client.get("/api/v1/semantic/metrics").json()["items"]
+    metric = next(item for item in metrics if item["name"] == "antitumor_drug_amount")
+    assert metric["status"] == "deprecated"
+
+    audit = client.get("/api/v1/semantic/audit/events").json()["items"]
+    assert audit[-1]["event_type"] == "metric_status_change"
+    assert audit[-1]["payload"]["actor"] == "data-steward"
+
+
+def test_semantic_metric_approval_workflow(client):
+    request_response = client.post(
+        "/api/v1/semantic/governance/metric-status-requests",
+        json={
+            "metric_name": "antitumor_drug_amount",
+            "requested_status": "deprecated",
+            "requester": "analyst-a",
+            "reason": "旧口径将被替换",
+        },
+    )
+
+    assert request_response.status_code == 200
+    request_id = request_response.json()["request_id"]
+    assert request_response.json()["status"] == "pending"
+
+    list_response = client.get("/api/v1/semantic/governance/metric-status-requests")
+    assert list_response.status_code == 200
+    assert list_response.json()["items"][0]["request_id"] == request_id
+
+    approve_response = client.post(
+        f"/api/v1/semantic/governance/metric-status-requests/{request_id}/approve",
+        json={"reviewer": "chief-data-office", "comment": "同意"},
+    )
+
+    assert approve_response.status_code == 200
+    assert approve_response.json()["status"] == "approved"
+
+    metric = next(
+        item
+        for item in client.get("/api/v1/semantic/metrics").json()["items"]
+        if item["name"] == "antitumor_drug_amount"
+    )
+    assert metric["status"] == "deprecated"
+
+    audit_events = client.get("/api/v1/semantic/audit/events").json()["items"]
+    assert [event["event_type"] for event in audit_events[-2:]] == [
+        "metric_status_request",
+        "metric_status_approved",
+    ]

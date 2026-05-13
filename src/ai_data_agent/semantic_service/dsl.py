@@ -30,3 +30,21 @@ class SemanticCompileResponse(BaseModel):
     dataset: str
     metrics: list[str]
     dimensions: list[str]
+
+
+class MetricStatusUpdateRequest(BaseModel):
+    status: Literal["draft", "published", "deprecated"]
+    actor: str = Field(..., min_length=1)
+    reason: str = Field(..., min_length=1)
+
+
+class MetricStatusApprovalRequest(BaseModel):
+    metric_name: str = Field(..., min_length=1)
+    requested_status: Literal["draft", "published", "deprecated"]
+    requester: str = Field(..., min_length=1)
+    reason: str = Field(..., min_length=1)
+
+
+class MetricStatusReviewRequest(BaseModel):
+    reviewer: str = Field(..., min_length=1)
+    comment: str = Field(..., min_length=1)
