@@ -1,30 +1,52 @@
 # Medical AI Data Agent
 
-医疗数据治理 Data Agent，面向 Doris / DuckDB 医疗数仓提供自然语言问数、GraphRAG 元数据检索、Text2SQL、安全执行、结果解释、审计和数仓开发辅助能力。
+医疗数据治理 AI 问数服务，面向 Doris / DuckDB 医疗数仓提供自然语言查询、GraphRAG 元数据检索、Text-to-SQL、安全执行、结果解释、审计和数仓开发辅助能力。
 
-当前仓库同时保留两套入口：
+## 三仓定位
 
-- `src/ai_data_agent/`：推荐的生产化实现，包含 GraphRAG、ReAct Agent、CLI、评估、健康检查和 `/api/v1/*` API。
-- `main.py` + `agent/` + `api/`：兼容旧版平台浮窗集成的轻量 FastAPI 入口，继续提供 `/api/chat`、`/api/dev/*` 等接口。
+| 仓库 | 定位 | 关系 |
+|------|------|------|
+| `medical-data-governance` | 数仓治理层 | 提供 ODS -> ADS SQL、DQ 规则、MPI/MDM、指标口径、血缘和 Doris 服务层 |
+| `medical-ai-agent` | AI 问数服务层 | 读取元数据和 Doris / DuckDB，生成安全 SQL 并返回解释 |
+| `medical-platform` | 可视化平台层 | 通过右下角 AI 助手浮窗调用本服务，同时展示治理看板 |
+
+推荐三个仓库保持同级目录：
+
+```text
+github/
+├── medical-data-governance/
+├── medical-ai-agent/
+└── medical-platform/
+```
+
+## 当前入口
+
+本仓库保留两套服务入口：
+
+| 入口 | 推荐场景 | 说明 |
+|------|----------|------|
+| `src/ai_data_agent/` | 生产化实现 | GraphRAG、ReAct Agent、CLI、评估、健康检查、`/api/v1/*` API |
+| `main.py` + `agent/` + `api/` | 平台兼容入口 | 兼容 `medical-platform` 浮窗集成，提供 `/api/chat`、`/api/dev/*` 等旧版接口 |
+
+新能力优先放在 `src/ai_data_agent/`。旧版入口继续保留，用于平台集成和已有 API 兼容。
 
 ## 核心能力
 
-### 生产化查询链路
+### 自然语言问数链路
 
-```
+```text
 用户问题
-  -> GraphRAG 检索元数据（Milvus / Milvus Lite + schema graph + lineage graph）
-  -> 构建 Text2SQL 上下文（表、指标、DQ 规则、Join 路径）
+  -> GraphRAG 检索元数据
+  -> 汇总表结构、指标口径、DQ 规则、Join 路径和血缘上下文
   -> LLM 生成 SQL
-  -> SQLGlot 安全校验（只读、Schema 白名单、禁 SELECT *、限制 LIMIT）
-  -> Doris 或 DuckDB 执行
-  -> 结果分析与自然语言解释
-  -> 审计记录与会话记忆
+  -> SQLGlot 安全校验
+  -> Doris 或 DuckDB 执行只读查询
+  -> 结果解释、失败分类和审计记录
 ```
 
 ### ReAct Agent 链路
 
-`/api/v1/agent/query` 会让 Agent 按步骤调用工具：
+`POST /api/v1/agent/query` 会让 Agent 逐步调用工具：
 
 - `search_metadata`：搜索表、指标、DQ 规则和血缘上下文。
 - `generate_sql`：基于上下文生成 SQL。
@@ -34,12 +56,31 @@
 
 ### 数仓开发助手
 
-最新版本增加了指标开发辅助接口：
+旧版兼容 API 中提供指标开发辅助能力：
 
 - 根据业务需求匹配或生成指标编码。
 - 生成 DWS / ADS 表设计草案。
 - 生成 SQL 草稿、DQ 规则和血缘说明。
 - 输出可落盘的 YAML / Markdown 指标资产。
+
+### Semantic Layer 状态
+
+项目已有轻量语义层雏形，但还不是完整的企业级 Semantic Layer。
+
+当前已具备：
+
+- `metadata/metric_catalog.yaml`：维护指标名称、展示名、描述、来源表、计算公式、时间字段、维度和过滤条件。
+- `src/ai_data_agent/semantic_layer/metrics.py`：提供 `MetricResolver`，用于按名称或文本匹配指标。
+- GraphRAG 上下文构建会把命中的指标、维度和 DQ 规则带入 Text2SQL Prompt。
+- 评估用例会检查 SQL 是否包含期望指标和维度。
+
+当前还未形成完整能力：
+
+- 独立维度目录、维表映射和层级关系。
+- 指标口径版本管理、审批流和血缘变更治理。
+- 统一指标 SQL 编译器或指标查询 DSL。
+- 统一权限、敏感字段策略和多租户口径隔离。
+- 面向 BI / API 的稳定语义查询服务。
 
 ## 快速启动
 
@@ -49,15 +90,15 @@
 pip install -r requirements.txt
 ```
 
-如使用 `pyproject.toml` 的生产化包入口，也可以在虚拟环境中安装当前项目：
+如果使用生产化包入口：
 
 ```bash
 pip install -e .
 ```
 
-### 2. Pocket 本地演示（DuckDB + Milvus Lite）
+### 2. Pocket 本地演示
 
-Pocket 模式适合本地验证，不需要启动 Doris 和独立 Milvus。
+Pocket 模式使用 DuckDB + Milvus Lite，不需要启动 Doris 和独立 Milvus，适合本地验证。
 
 ```bash
 cp .env.pocket.example .env
@@ -66,27 +107,27 @@ cp .env.pocket.example .env
 bash scripts/run_pocket_demo.sh
 ```
 
-脚本会完成三件事：
+脚本会：
 
 1. 初始化 `data/medical_dw.db` DuckDB 示例数仓。
 2. 首次运行时构建 `data/medical_metadata.db` Milvus Lite 元数据索引。
 3. 启动 Web/API 服务，默认地址为 `http://127.0.0.1:8000`。
 
-重新构建元数据索引：
+重建元数据索引：
 
 ```bash
 REBUILD_METADATA=1 bash scripts/run_pocket_demo.sh
 ```
 
-### 3. 生产配置启动（Doris + Milvus）
+### 3. 生产配置启动
 
-准备环境变量：
+准备配置：
 
 ```bash
 cp .env.example .env
 ```
 
-生产化配置文件示例在 `config/application.example.yaml`，关键配置包括：
+关键环境变量：
 
 ```env
 DORIS_HOST=127.0.0.1
@@ -128,7 +169,7 @@ ai-data-agent ingest-metadata \
   --create-collection
 ```
 
-启动服务：
+启动生产化 API：
 
 ```bash
 ai-data-agent serve \
@@ -138,7 +179,7 @@ ai-data-agent serve \
   --port 8000
 ```
 
-也可以直接用 Uvicorn：
+也可以直接使用 Uvicorn：
 
 ```bash
 AI_DATA_AGENT_CONFIG=config/application.example.yaml \
@@ -146,12 +187,38 @@ AI_DATA_AGENT_METADATA_ROOT=metadata \
 uvicorn ai_data_agent.main:app --host 0.0.0.0 --port 8000
 ```
 
-### 4. 旧版兼容入口
+### 4. 兼容平台入口
 
-如需要使用旧版 `/api/chat`、`/api/index/rebuild` 或前端平台浮窗集成：
+`medical-platform/docker-compose.yml` 会从同级目录构建本仓库的 `Dockerfile.simple`，并把容器端口 `8000` 映射到宿主机 `8001`。
+
+本地单独启动兼容 API：
 
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 8001
+```
+
+兼容 API 用于：
+
+- `POST /api/chat`：平台 AI 浮窗对话。
+- `POST /api/index/rebuild`：重建旧版 schema 向量索引。
+- `GET /api/audit/logs`：审计日志查询。
+- `POST /api/dev/metric-plan`：生成指标开发方案。
+- `POST /api/dev/metric-assets`：保存指标资产。
+
+## Docker Compose
+
+本仓库自带 `docker-compose.yml`，可启动 Milvus、Doris 和 AI Data Agent：
+
+```bash
+cp .env.example .env
+docker compose up -d
+```
+
+该 Compose 更适合独立验证 AI Agent。若要运行完整可视化平台，请从 `medical-platform` 执行：
+
+```bash
+cd ../medical-platform
+docker compose up --build
 ```
 
 ## API
@@ -168,7 +235,7 @@ uvicorn main:app --host 0.0.0.0 --port 8001
 | `GET` | `/health` | 基础健康检查 |
 | `GET` | `/health/ready` | 就绪检查 |
 
-单轮查询示例：
+查询示例：
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/query \
@@ -180,20 +247,7 @@ curl -X POST http://localhost:8000/api/v1/query \
   }'
 ```
 
-Agent 查询示例：
-
-```bash
-curl -X POST http://localhost:8000/api/v1/agent/query \
-  -H "Content-Type: application/json" \
-  -d '{
-    "session_id": "demo-session",
-    "question": "查询抗肿瘤药物汇总中科室缺失的数据质量问题",
-    "max_steps": 8,
-    "max_rows": 50
-  }'
-```
-
-### 旧版兼容 API
+### 兼容 API
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -206,103 +260,61 @@ curl -X POST http://localhost:8000/api/v1/agent/query \
 | `POST` | `/api/dev/metric-assets` | 保存指标方案为 YAML / Markdown |
 | `GET` | `/health` | 健康检查 |
 
-指标开发方案示例：
-
-```bash
-curl -X POST http://localhost:8001/api/dev/metric-plan \
-  -H "Content-Type: application/json" \
-  -d '{
-    "requirement": "帮我设计一个抗肿瘤药物使用强度指标，支持按科室和药品下钻",
-    "domain": "药物监测"
-  }'
-```
-
-## CLI
-
-| 命令 | 说明 |
-|------|------|
-| `ai-data-agent health-check` | 校验配置、元数据和可选外部依赖 |
-| `ai-data-agent ingest-metadata` | 将 `metadata/` 中的元数据切片并写入 Milvus |
-| `ai-data-agent serve` | 启动生产化 FastAPI 服务 |
-| `ai-data-agent evaluate` | 基于 `evaluation/questions.jsonl` 批量评估 Text2SQL 链路 |
-
-评估示例：
-
-```bash
-ai-data-agent evaluate \
-  --config config/application.pocket.yaml \
-  --metadata-root metadata \
-  --questions evaluation/questions.jsonl \
-  --output data/evaluation-report.json \
-  --dry-run
-```
-
-## SQL 安全规则
-
-| 规则 | 说明 |
-|------|------|
-| 只允许 `SELECT` | 生产化 SQL guard 拒绝非只读语句 |
-| 禁止多语句 | 只允许单条 SQL |
-| 禁止 `SELECT *` | 避免无边界明细扫描 |
-| Schema 白名单 | 默认允许 `dwd`、`dim`、`dws`、`ads`、`dq`、`mpi`、`mdm` |
-| 强制 `LIMIT` | Agent 生成查询必须带限制 |
-| 表必须带 Schema | 防止误查默认库或同名表 |
-| 执行器只读 | Doris / DuckDB executor 均按只读查询路径设计 |
-
-## 目录结构
+## 项目结构
 
 ```text
 medical-ai-agent/
-├── src/ai_data_agent/          # 推荐的生产化包
-│   ├── api/                    # /api/v1 路由、依赖、鉴权、限流
-│   ├── agent/                  # ReAct loop、工具、记忆、审计、结果分析
-│   ├── executor/               # Doris / DuckDB 查询执行器
-│   ├── graphrag/               # 元数据切片、向量检索、图检索、上下文构建
-│   ├── semantic_layer/         # 指标解析
-│   ├── text2sql/               # Prompt、LLM 客户端、SQL 生成与校验
-│   ├── evaluation/             # 批量评估与回归检测
-│   └── observability/          # 日志与成本观测
-├── agent/                      # 旧版兼容 Agent 模块
-├── api/                        # 旧版兼容 API，包括 /api/dev 数仓开发助手
-├── metadata/                   # 指标、Schema、血缘、DQ 规则元数据
-├── schema/                     # 旧版 ADS schema YAML
-├── scripts/                    # Pocket Demo 初始化与启动脚本
-├── tests/                      # 单元、集成、回归和兼容性测试
-├── config/                     # application.*.yaml 配置
-├── data/                       # 本地 DuckDB / Milvus Lite / 会话数据
-├── Dockerfile
-├── Dockerfile.simple
-├── docker-compose.yml
-├── pyproject.toml
-└── requirements.txt
+├── src/ai_data_agent/       # 生产化包入口、CLI、API、配置和元数据加载
+├── agent/                   # 旧版兼容 Agent pipeline
+├── api/                     # 旧版兼容 FastAPI 路由
+├── metadata/                # 表、字段、指标、DQ 规则、血缘和 Join 图
+├── schema/                  # ADS 表 schema 示例
+├── skills/                  # 领域分析技能说明
+├── evaluation/              # 评测问题、期望指标和评测 runner
+├── scripts/                 # Pocket demo 初始化与启动脚本
+├── config/                  # application 配置模板
+├── tests/                   # 单元与集成测试
+├── main.py                  # 旧版兼容入口
+└── pyproject.toml           # 生产化包与 CLI 配置
 ```
 
-## 测试
+## 与数仓项目同步
+
+当 `medical-data-governance` 中的 ADS 表、DQ 规则或指标口径变化后，需要同步检查本仓库：
+
+- `metadata/schema_catalog.yaml`
+- `metadata/metric_catalog.yaml`
+- `metadata/dq_rule_catalog.yaml`
+- `metadata/lineage_graph.yaml`
+- `metadata/schema_graph.yaml`
+- `evaluation/*.yaml` 和 `evaluation/questions.jsonl`
+
+同步后建议运行：
 
 ```bash
 pytest
 ```
 
-常见重点测试：
+## 开发与测试
 
 ```bash
+pytest
 pytest tests/test_sql_guard.py
-pytest tests/test_graphrag_retriever.py
-pytest tests/test_text2sql_generation.py
-pytest tests/test_warehouse_dev_assets.py
+pytest tests/integration/test_duckdb_query.py
 ```
 
-## 部署
+如果只验证 CLI 和配置：
 
-完整 Linux 部署步骤见 `DEPLOYMENT.md`，包括：
+```bash
+ai-data-agent health-check \
+  --config config/application.example.yaml \
+  --metadata-root metadata
+```
 
-- Docker Compose 全栈部署 Doris、Milvus 和 Agent。
-- Conda + systemd 手动部署。
-- 元数据初始化、健康检查和常用运维命令。
+## 生产约束
 
-## 相关仓库
-
-| 仓库 | 说明 |
-|------|------|
-| [medical-platform](https://github.com/bigdataliuchuang/medical-platform) | 前端平台，集成 AI 对话浮动组件 |
-| [medical-data-governance](https://github.com/bigdataliuchuang/medical-data-governance) | 医疗数仓与数据治理底座 |
+- 正式执行引擎优先使用 Doris。
+- 正式向量检索使用 Milvus；Pocket 模式可使用 Milvus Lite。
+- SQL 必须通过 SQLGlot 安全校验后才能执行。
+- 查询失败时不允许伪造结果。
+- Mock 和 DuckDB 仅用于本地演示、评测或测试隔离。
