@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from threading import Lock
 
 from ai_data_agent.graphrag.embedding import EmbeddingClient
 from ai_data_agent.graphrag.graph import SchemaGraphRetriever
+from ai_data_agent.graphrag.keyword import KeywordMetadataIndex
 from ai_data_agent.graphrag.milvus_store import MilvusMetadataStore, VectorSearchResult
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,7 @@ class RetrievalContext:
     vector_results: list[VectorSearchResult]
     related_tables: dict[str, list[str]]
     lineage_matches: dict[str, list[dict]]
+    keyword_results: list[VectorSearchResult] = field(default_factory=list)
 
 
 class _SearchCache:
@@ -65,12 +67,14 @@ class GraphRagRetriever:
         embedding_client: EmbeddingClient,
         store: MilvusMetadataStore,
         graph_retriever: SchemaGraphRetriever,
+        keyword_index: KeywordMetadataIndex | None = None,
         *,
         cache_ttl_s: float = _DEFAULT_CACHE_TTL_S,
     ):
         self.embedding_client = embedding_client
         self.store = store
         self.graph_retriever = graph_retriever
+        self.keyword_index = keyword_index
         self._cache = _SearchCache(ttl_s=cache_ttl_s)
 
     def search_metadata(self, query: str, top_k: int = 5) -> RetrievalContext:
@@ -88,10 +92,17 @@ class GraphRagRetriever:
         if not vector_results:
             logger.warning("Vector search returned 0 results for query: %s", query[:80])
 
+        keyword_results = (
+            self.keyword_index.search(query, top_k=top_k)
+            if self.keyword_index is not None
+            else []
+        )
+        fused_results = _fuse_results(vector_results, keyword_results, top_k=top_k)
+
         table_names = sorted(
             {
                 table
-                for result in vector_results
+                for result in fused_results
                 for table in result.metadata.get("table_name", "").split(",")
                 if table
             }
@@ -104,9 +115,10 @@ class GraphRagRetriever:
         }
         result = RetrievalContext(
             query=query,
-            vector_results=vector_results,
+            vector_results=fused_results,
             related_tables=related_tables,
             lineage_matches=lineage_matches,
+            keyword_results=keyword_results,
         )
         self._cache.put(cache_key, result)
         return result
@@ -114,3 +126,40 @@ class GraphRagRetriever:
     def clear_cache(self) -> None:
         """Evict all cached retrieval results."""
         self._cache.clear()
+
+
+def _fuse_results(
+    vector_results: list[VectorSearchResult],
+    keyword_results: list[VectorSearchResult],
+    top_k: int,
+    rrf_k: int = 60,
+) -> list[VectorSearchResult]:
+    """Fuse vector and keyword rankings with Reciprocal Rank Fusion."""
+
+    if not keyword_results:
+        return vector_results[:top_k]
+    if not vector_results:
+        return keyword_results[:top_k]
+
+    by_doc_id: dict[str, VectorSearchResult] = {}
+    scores: dict[str, float] = {}
+
+    for results in (vector_results, keyword_results):
+        for rank, result in enumerate(results, start=1):
+            by_doc_id.setdefault(result.doc_id, result)
+            scores[result.doc_id] = scores.get(result.doc_id, 0.0) + 1.0 / (rrf_k + rank)
+
+    ranked = sorted(scores, key=lambda doc_id: scores[doc_id], reverse=True)
+    return [
+        _with_score(by_doc_id[doc_id], scores[doc_id])
+        for doc_id in ranked[:top_k]
+    ]
+
+
+def _with_score(result: VectorSearchResult, score: float) -> VectorSearchResult:
+    return VectorSearchResult(
+        doc_id=result.doc_id,
+        score=score,
+        content=result.content,
+        metadata=result.metadata,
+    )

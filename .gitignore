@@ -9,6 +9,6 @@ data/*.db
 data/*.db-lock
 data/*.db-wal
 data/*.db-shm
-graphrag/
+/graphrag/
 .pytest_cache/
 .omx/

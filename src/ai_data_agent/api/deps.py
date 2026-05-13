@@ -16,6 +16,7 @@ from ai_data_agent.executor.duckdb import DuckDBExecutor
 from ai_data_agent.graphrag.context_builder import GraphRagContextBuilder
 from ai_data_agent.graphrag.factory import build_embedding_client, build_milvus_store
 from ai_data_agent.graphrag.graph import SchemaGraphRetriever
+from ai_data_agent.graphrag.keyword import KeywordMetadataIndex
 from ai_data_agent.graphrag.retriever import GraphRagRetriever
 from ai_data_agent.metadata import MetadataRepository
 from ai_data_agent.semantic_layer.metrics import MetricResolver
@@ -63,7 +64,8 @@ def build_query_services(
         metadata.schema_graph, metadata.lineage_graph
     )
 
-    retriever = GraphRagRetriever(embedding, store, graph_retriever)
+    keyword_index = KeywordMetadataIndex.from_repository(metadata)
+    retriever = GraphRagRetriever(embedding, store, graph_retriever, keyword_index)
     metric_resolver = MetricResolver(metadata.metric_catalog)
     context_builder = GraphRagContextBuilder(metadata, graph_retriever, metric_resolver)
     sql_generator = build_sql_generation_service(config)
