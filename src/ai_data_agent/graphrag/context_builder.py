@@ -136,6 +136,13 @@ class GraphRagContextBuilder:
         for table_name in table_names:
             for lineage in self.graph_retriever.find_lineage(table_name):
                 lineages_by_id[lineage.get("id", "")] = lineage
+            for edge in self.repository.find_generated_lineage(table_name):
+                edge_id = "generated:{source}->{target}:{file}".format(
+                    source=edge.get("source_table", ""),
+                    target=edge.get("target_table", ""),
+                    file=edge.get("sql_file", ""),
+                )
+                lineages_by_id[edge_id] = edge
 
         return TextToSqlContext(
             question=retrieval.query,

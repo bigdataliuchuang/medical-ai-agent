@@ -38,6 +38,30 @@ def test_metadata_repository_loads_curated_assets() -> None:
     assert any(rule["rule_code"] == "DQ-DRUG-DEPT-NULL" for rule in repo.dq_rules())
 
 
+def test_metadata_repository_loads_generated_table_lineage(tmp_path: Path) -> None:
+    metadata_root = tmp_path / "metadata"
+    medical_root = metadata_root / "medical"
+    medical_root.mkdir(parents=True)
+    for name in ["schema_catalog", "metric_catalog", "dq_rule_catalog", "schema_graph", "lineage_graph"]:
+        (metadata_root / f"{name}.yaml").write_text("{}\n", encoding="utf-8")
+    (medical_root / "table_lineage.yml").write_text(
+        """
+- source_table: "dws.dws_tumor_drug_usage_1d"
+  target_table: "ads.ads_drug_usage_trend"
+  source_layer: "dws"
+  target_layer: "ads"
+  engine: "doris"
+  sql_file: "sql/medical/doris/ads/load/load_ads_drug_usage_trend.sql"
+""",
+        encoding="utf-8",
+    )
+
+    repo = MetadataRepository.load(metadata_root)
+
+    related = repo.find_generated_lineage("ads.ads_drug_usage_trend")
+    assert related[0]["source_table"] == "dws.dws_tumor_drug_usage_1d"
+
+
 def test_example_config_fails_fast_without_production_env(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

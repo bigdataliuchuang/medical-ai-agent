@@ -78,3 +78,52 @@ def test_context_builder_outputs_text_to_sql_context() -> None:
     assert all("fields" in table for table in prompt_dict["tables"])
     assert any("dws.dws_tumor_drug_usage_1d" in lineage["path"] for lineage in prompt_dict["lineages"])
     assert prompt_dict["sources"][0]["source_path"] == "ai-data-agent/metadata/metric_catalog.yaml"
+
+
+def test_context_builder_includes_generated_table_lineage() -> None:
+    repo = MetadataRepository.load(ROOT / "metadata")
+    generated_edge = {
+        "source_table": "dws.dws_tumor_drug_usage_1d",
+        "target_table": "ads.ads_drug_usage_trend",
+        "source_layer": "dws",
+        "target_layer": "ads",
+        "engine": "doris",
+        "sql_file": "sql/medical/doris/ads/load/load_ads_drug_usage_trend.sql",
+    }
+    repo = MetadataRepository(
+        root=repo.root,
+        schema_catalog=repo.schema_catalog,
+        metric_catalog=repo.metric_catalog,
+        dq_rule_catalog=repo.dq_rule_catalog,
+        schema_graph=repo.schema_graph,
+        lineage_graph=repo.lineage_graph,
+        generated_table_lineage=[generated_edge],
+    )
+    graph = SchemaGraphRetriever(repo.schema_graph, repo.lineage_graph)
+    builder = GraphRagContextBuilder(repo, graph, MetricResolver(repo.metric_catalog))
+
+    retrieval = RetrievalContext(
+        query="查看药品使用趋势",
+        vector_results=[
+            VectorSearchResult(
+                doc_id="table-1",
+                score=0.95,
+                content="抗肿瘤药物使用趋势",
+                metadata={
+                    "doc_type": "table",
+                    "source_path": "ai-data-agent/metadata/schema_catalog.yaml",
+                    "layer": "ADS",
+                    "business_domain": "drug",
+                    "table_name": "ads.ads_drug_usage_trend",
+                    "field_name": "",
+                    "metric_name": "",
+                },
+            )
+        ],
+        related_tables={},
+        lineage_matches={},
+    )
+
+    context = builder.build(retrieval)
+
+    assert generated_edge in context.to_prompt_dict()["lineages"]
