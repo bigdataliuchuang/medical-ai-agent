@@ -879,11 +879,12 @@ function DevAssistantPage(){
     const r=(text||req).trim();if(!r)return;
     setReq(r);setLoading(true);setPlan(null);setSaved(false);
     try{
-      const raw=await window.claude.complete({messages:[{role:'user',content:`你是医疗数据指标开发助手。用户需求：${r}\n\n请只返回JSON，无其他文字，格式：{"metric_code":"英文下划线编码","metric_name":"中文名","business_domain":"业务域","source_tables":["表1","表2"],"dws_design":{"table_name":"dws_xxx","description":"描述","grain":["粒度"],"measures":["度量"]},"ads_design":{"table_name":"ads_xxx","description":"描述","grain":["粒度"],"measures":["度量"]},"sql_draft":"SQL草稿","dq_rules":[{"rule_code":"编码","rule_name":"规则名","severity":"CRITICAL","check_sql":"SQL"}],"lineage":{"upstream":["表1"],"dws":"dws表名","ads":"ads表名"},"drilldown_policy":{"default_layer":"ADS","detail_layer":"DWD","forbidden":["禁止项"],"required_guards":["保护项"]},"warnings":[]}`}]});
-      const m=raw.match(/\{[\s\S]*\}/);
-      if(m)setPlan(JSON.parse(m[0]));else throw new Error('parse fail');
-    }catch{
-      setPlan({metric_code:'ddi_intensity',metric_name:'抗肿瘤药物使用强度（DDI）',business_domain:'药物质量管理',source_tables:['ods.ods_drug_order','ods.ods_inpatient_record','dim.dim_drug'],dws_design:{table_name:'dws_drug_ddi_1d',description:'按科室/日期汇总的抗肿瘤药物使用强度宽表',grain:['stat_date','dept_code','drug_category'],measures:['total_dose_mg','patient_cnt','ddi_value']},ads_design:{table_name:'ads_drug_ddi_monitor',description:'面向监测系统的DDI指标服务层',grain:['stat_date','dept_name'],measures:['ddi_intensity','ddi_exceed_flag','benchmark']},sql_draft:`INSERT INTO dws.dws_drug_ddi_1d\nSELECT\n  CAST(o.order_date AS DATE) AS stat_date,\n  o.dept_code,\n  d.drug_category,\n  SUM(o.dose_mg)                             AS total_dose_mg,\n  COUNT(DISTINCT o.patient_id)               AS patient_cnt,\n  ROUND(SUM(o.dose_mg)/COUNT(DISTINCT o.patient_id),4) AS ddi_value\nFROM ods.ods_drug_order o\nJOIN dim.dim_drug d ON o.drug_code = d.drug_code\nWHERE o.is_antitumor = 1\n  AND o.order_date = '${new Date().toISOString().slice(0,10)}'\nGROUP BY 1,2,3`,dq_rules:[{rule_code:'DDI-RANGE-001',rule_name:'DDI强度合理范围校验',severity:'CRITICAL',check_sql:`SELECT COUNT(*) FROM dws.dws_drug_ddi_1d\nWHERE ddi_value > 3.0 AND stat_date = CURDATE()`},{rule_code:'DDI-NULL-002',rule_name:'剂量字段非空校验',severity:'HIGH',check_sql:`SELECT COUNT(*) FROM dws.dws_drug_ddi_1d\nWHERE total_dose_mg IS NULL AND stat_date = CURDATE()`}],lineage:{upstream:['ods.ods_drug_order','ods.ods_inpatient_record'],dws:'dws.dws_drug_ddi_1d',ads:'ads.ads_drug_ddi_monitor'},drilldown_policy:{default_layer:'ADS',detail_layer:'DWD',forbidden:['ods.ods_inpatient_record.*','patient_id直接下钻'],required_guards:['tenant_id过滤','dept_auth校验']},warnings:['ODS层药品编码标准化程度需确认','与MPI患者ID的关联需通过DWD层进行']});
+      const res=await fetch('/api/dev/metric-plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requirement:r})});
+      if(!res.ok)throw new Error('HTTP '+res.status);
+      const d=await res.json();
+      setPlan(d);
+    }catch(e){console.error('metric-plan error',e);
+      setPlan({metric_code:'ddi_intensity',metric_name:'抗肿瘤药物使用强度（DDI）',business_domain:'药物质量管理',source_tables:['ods.ods_drug_order','ods.ods_inpatient_record','dim.dim_drug'],dws_design:{table_name:'dws_drug_ddi_1d',description:'按科室/日期汇总的抗肿瘤药物使用强度宽表',grain:['stat_date','dept_code','drug_category'],measures:['total_dose_mg','patient_cnt','ddi_value']},ads_design:{table_name:'ads_drug_ddi_monitor',description:'面向监测系统的DDI指标服务层',grain:['stat_date','dept_name'],measures:['ddi_intensity','ddi_exceed_flag','benchmark']},sql_draft:`INSERT INTO dws.dws_drug_ddi_1d\nSELECT\n  CAST(o.order_date AS DATE) AS stat_date,\n  o.dept_code,\n  d.drug_category,\n  SUM(o.dose_mg) AS total_dose_mg,\n  COUNT(DISTINCT o.patient_id) AS patient_cnt,\n  ROUND(SUM(o.dose_mg)/COUNT(DISTINCT o.patient_id),4) AS ddi_value\nFROM ods.ods_drug_order o\nJOIN dim.dim_drug d ON o.drug_code = d.drug_code\nWHERE o.is_antitumor = 1\n  AND o.order_date = CURDATE()\nGROUP BY 1,2,3`,dq_rules:[{rule_code:'DDI-RANGE-001',rule_name:'DDI强度合理范围校验',severity:'CRITICAL',check_sql:`SELECT COUNT(*) FROM dws.dws_drug_ddi_1d\nWHERE ddi_value > 3.0 AND stat_date = CURDATE()`},{rule_code:'DDI-NULL-002',rule_name:'剂量字段非空校验',severity:'HIGH',check_sql:`SELECT COUNT(*) FROM dws.dws_drug_ddi_1d\nWHERE total_dose_mg IS NULL AND stat_date = CURDATE()`}],lineage:{upstream:['ods.ods_drug_order','ods.ods_inpatient_record'],dws:'dws.dws_drug_ddi_1d',ads:'ads.ads_drug_ddi_monitor'},drilldown_policy:{default_layer:'ADS',detail_layer:'DWD',forbidden:['ods.ods_inpatient_record.*','patient_id直接下钻'],required_guards:['tenant_id过滤','dept_auth校验']},warnings:['后端暂时不可用，显示本地示例数据']});
     }finally{setLoading(false);}
   };
 
@@ -917,7 +918,12 @@ function DevAssistantPage(){
                   ))}
                   <div><div style={{fontSize:11,color:'var(--tx3)'}}>推荐源表</div><Tag items={plan.source_tables} cls="tag tag-purple"/></div>
                 </div>
-                <button className="btn btn-primary btn-sm" style={{marginTop:12}} onClick={()=>setSaved(true)}>
+                <button className="btn btn-primary btn-sm" style={{marginTop:12}} onClick={async()=>{
+                  try{
+                    await fetch('/api/dev/metric-assets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plan})});
+                  }catch(e){console.error('save asset error',e);}
+                  setSaved(true);
+                }}>
                   {saved?<><i className="ri-check-line"/>已保存</>:<><i className="ri-save-line"/>保存为指标资产</>}
                 </button>
               </Crd3>
@@ -969,17 +975,86 @@ function DevAssistantPage(){
   );
 }
 
+function useApiData(url,fallback){
+  const [data,setData]=React.useState(null);
+  const [err,setErr]=React.useState(false);
+  React.useEffect(()=>{
+    fetch(url).then(r=>r.json()).then(d=>setData(d.items||d)).catch(()=>setErr(true));
+  },[url]);
+  return err||data===null?fallback:(Array.isArray(data)?data:fallback);
+}
+
 function SemanticLayerPage(){
   const [tab,setTab]=React.useState('query');
-  const [compiled,setCompiled]=React.useState(false);
-  const [queried,setQueried]=React.useState(false);
   const [loading,setLoading]=React.useState(false);
-  const [approvals,setApprovals]=React.useState(SEM_APPROVALS);
+  const [sqlResult,setSqlResult]=React.useState(null);
+  const [queryResult,setQueryResult]=React.useState(null);
+  const [queryErr,setQueryErr]=React.useState('');
+  const [approvals,setApprovals]=React.useState(null);
+  const [auditEvents,setAuditEvents]=React.useState(null);
 
-  const doCompile=()=>{setLoading(true);setTimeout(()=>{setCompiled(true);setQueried(false);setLoading(false);},600);};
-  const doQuery=()=>{setLoading(true);setTimeout(()=>{setCompiled(true);setQueried(true);setLoading(false);},900);};
-  const approve=(id)=>setApprovals(p=>p.map(r=>r.id===id?{...r,status:'approved',reviewer:'admin'}:r));
-  const reject=(id)=>setApprovals(p=>p.map(r=>r.id===id?{...r,status:'rejected',reviewer:'admin'}:r));
+  const tenantRef=React.useRef();const roleRef=React.useRef();const metricsRef=React.useRef();
+  const dimsRef=React.useRef();const limitRef=React.useRef();
+
+  const metrics=useApiData('/api/v1/semantic/metrics',SEM_METRICS.map(m=>({name:m.name,display_name:m.display,dataset:m.dataset,formula:m.formula,status:m.status,owner:m.owner})));
+  const dimensions=useApiData('/api/v1/semantic/dimensions',SEM_DIMS.map(d=>({name:d.name,display_name:d.display,dataset:d.dataset,column:d.col,type:d.type,sensitivity:d.sens})));
+  const datasets=useApiData('/api/v1/semantic/datasets',SEM_DATASETS.map(d=>({name:d.name,display_name:d.display,physical_table:d.table,time_field:d.time_field,field_count:d.fields})));
+
+  React.useEffect(()=>{
+    if(tab==='approvals'&&approvals===null){
+      fetch('/api/v1/semantic/governance/metric-status-requests').then(r=>r.json())
+        .then(d=>setApprovals(d.items||SEM_APPROVALS)).catch(()=>setApprovals(SEM_APPROVALS));
+    }
+    if(tab==='audit'&&auditEvents===null){
+      fetch('/api/v1/semantic/audit/events').then(r=>r.json())
+        .then(d=>setAuditEvents(d.items||SEM_AUDIT)).catch(()=>setAuditEvents(SEM_AUDIT));
+    }
+  },[tab]);
+
+  const buildReq=()=>({
+    tenant_id:(tenantRef.current?.value||'hospital-a').trim(),
+    role:(roleRef.current?.value||'analyst').trim(),
+    metrics:(metricsRef.current?.value||'ddi_intensity').split(/[,\s]+/).map(s=>s.trim()).filter(Boolean),
+    dimensions:(dimsRef.current?.value||'stat_date').split(/[,\s]+/).map(s=>s.trim()).filter(Boolean),
+    filters:[],
+    limit:parseInt(limitRef.current?.value||'100',10)||100,
+  });
+
+  const doCompile=async()=>{
+    setLoading(true);setSqlResult(null);setQueryResult(null);setQueryErr('');
+    try{
+      const res=await fetch('/api/v1/semantic/compile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(buildReq())});
+      if(!res.ok){const e=await res.json();throw new Error(e.detail||'HTTP '+res.status);}
+      const d=await res.json();setSqlResult(d.sql||JSON.stringify(d,null,2));
+    }catch(e){setSqlResult('-- 编译失败: '+e.message);}
+    finally{setLoading(false);}
+  };
+
+  const doQuery=async()=>{
+    setLoading(true);setQueryResult(null);setQueryErr('');
+    try{
+      const res=await fetch('/api/v1/semantic/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(buildReq())});
+      if(!res.ok){const e=await res.json();throw new Error(e.detail||'HTTP '+res.status);}
+      const d=await res.json();
+      if(d.sql&&!sqlResult)setSqlResult(d.sql);
+      const rows=d.rows||d.data||[];
+      const cols=d.columns||(rows.length?Object.keys(rows[0]):[]);
+      setQueryResult({columns:cols,rows});
+    }catch(e){setQueryErr(e.message);}
+    finally{setLoading(false);}
+  };
+
+  const approve=async(id)=>{
+    try{await fetch(`/api/v1/semantic/governance/metric-status-requests/${id}/approve`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reviewer:'admin',comment:'通过审批'})});}catch{}
+    setApprovals(p=>(p||[]).map(r=>r.id===id||r.request_id===id?{...r,status:'approved',reviewer:'admin'}:r));
+  };
+  const reject=async(id)=>{
+    try{await fetch(`/api/v1/semantic/governance/metric-status-requests/${id}/reject`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reviewer:'admin',comment:'驳回'})});}catch{}
+    setApprovals(p=>(p||[]).map(r=>r.id===id||r.request_id===id?{...r,status:'rejected',reviewer:'admin'}:r));
+  };
+
+  const effApprovals=approvals||SEM_APPROVALS;
+  const effAudit=auditEvents||SEM_AUDIT;
 
   return(
     <>
@@ -993,107 +1068,146 @@ function SemanticLayerPage(){
       {tab==='query'&&(
         <div style={{display:'grid',gridTemplateColumns:'300px 1fr',gap:16,alignItems:'start'}}>
           <Crd3 title="查询 DSL">
-            {[['租户','hospital-a'],['角色','analyst'],['指标','ddi_intensity'],['维度','stat_date, dept_name'],['开始日期','2026-01-01'],['结束日期','2026-01-31'],['行数限制','100']].map(([l,v])=>(
+            {[['租户',tenantRef,'hospital-a'],['角色',roleRef,'analyst'],['指标（逗号分隔）',metricsRef,'ddi_intensity'],['维度（逗号分隔）',dimsRef,'stat_date, dept_name'],['行数限制',limitRef,'100']].map(([l,r,v])=>(
               <div key={l} style={{marginBottom:10}}>
                 <div className="fl">{l}</div>
-                <input className="fi" defaultValue={v}/>
+                <input className="fi" ref={r} defaultValue={v}/>
               </div>
             ))}
             <div style={{display:'flex',gap:8,marginTop:4}}>
-              <button className="btn btn-default" style={{flex:1,justifyContent:'center'}} onClick={doCompile} disabled={loading}><i className="ri-code-s-slash-line"/> 编译 SQL</button>
-              <button className="btn btn-primary" style={{flex:1,justifyContent:'center'}} onClick={doQuery} disabled={loading}><i className="ri-play-circle-line"/> 执行查询</button>
+              <button className="btn btn-default" style={{flex:1,justifyContent:'center'}} onClick={doCompile} disabled={loading}>{loading?<span className="spin-dark" style={{width:12,height:12,border:'2px solid #e2e8f0',borderTopColor:'var(--tx2)',borderRadius:'50%',display:'inline-block'}}/>:<i className="ri-code-s-slash-line"/>} 编译 SQL</button>
+              <button className="btn btn-primary" style={{flex:1,justifyContent:'center'}} onClick={doQuery} disabled={loading}>{loading?<span className="spin"/>:<i className="ri-play-circle-line"/>} 执行查询</button>
             </div>
           </Crd3>
           <div style={{display:'flex',flexDirection:'column',gap:12}}>
             <Crd3 title="SQL 预览">
-              {compiled?<div className="code-block">{MOCK_SQL}</div>:<div style={{fontSize:13,color:'var(--tx3)',padding:'8px 0'}}>点击"编译 SQL"后在此显示</div>}
+              {sqlResult?<div className="code-block">{sqlResult}</div>:<div style={{fontSize:13,color:'var(--tx3)',padding:'8px 0'}}>点击"编译 SQL"后在此显示</div>}
             </Crd3>
             <Crd3 title="查询结果">
-              {queried?(
-                <table className="tbl"><thead><tr>{MOCK_RESULT.columns.map(c=><th key={c}>{c}</th>)}</tr></thead>
-                <tbody>{MOCK_RESULT.rows.map((r,i)=><tr key={i}>{MOCK_RESULT.columns.map(c=><td key={c} style={{fontFamily:typeof r[c]==='number'?'monospace':'inherit'}}>{r[c]}</td>)}</tr>)}</tbody></table>
-              ):<div style={{fontSize:13,color:'var(--tx3)',padding:'8px 0'}}>点击"执行查询"后在此显示</div>}
+              {queryErr&&<div style={{color:'var(--err)',fontSize:13,padding:'8px 0'}}>{queryErr}</div>}
+              {queryResult&&queryResult.rows.length>0?(
+                <table className="tbl"><thead><tr>{queryResult.columns.map(c=><th key={c}>{c}</th>)}</tr></thead>
+                <tbody>{queryResult.rows.map((r,i)=><tr key={i}>{queryResult.columns.map(c=><td key={c} style={{fontFamily:typeof r[c]==='number'?'monospace':'inherit'}}>{String(r[c]??'')}</td>)}</tr>)}</tbody></table>
+              ):(!queryErr&&<div style={{fontSize:13,color:'var(--tx3)',padding:'8px 0'}}>点击"执行查询"后在此显示</div>)}
             </Crd3>
           </div>
         </div>
       )}
 
       {tab==='metrics'&&(
-        <Crd3 title="指标目录" extra={<span style={{fontSize:12,color:'var(--tx2)'}}>{SEM_METRICS.length} 个指标</span>}>
+        <Crd3 title="指标目录" extra={<span style={{fontSize:12,color:'var(--tx2)'}}>{metrics.length} 个指标</span>}>
           <table className="tbl"><thead><tr><th>指标名称</th><th>编码</th><th>数据集</th><th>公式</th><th>状态</th><th>Owner</th></tr></thead>
-          <tbody>{SEM_METRICS.map((m,i)=>(
-            <tr key={i}>
-              <td style={{fontWeight:500}}>{m.display}</td>
-              <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{m.name}</td>
-              <td style={{fontSize:12,color:'var(--tx2)'}}>{m.dataset}</td>
-              <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{m.formula}</td>
-              <td><span className={`tag ${m.status==='published'?'tag-ok':'tag-gray'}`}>{m.status}</span></td>
-              <td style={{fontSize:12,color:'var(--tx2)'}}>{m.owner}</td>
-            </tr>
-          ))}</tbody></table>
+          <tbody>{metrics.map((m,i)=>{
+            const name=m.display_name||m.display||m.name;
+            const code=m.name;
+            const ds=m.dataset||m.source_dataset||'—';
+            const formula=m.formula||'—';
+            const status=m.status||'draft';
+            const owner=m.owner||'—';
+            return(
+              <tr key={i}>
+                <td style={{fontWeight:500}}>{name}</td>
+                <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{code}</td>
+                <td style={{fontSize:12,color:'var(--tx2)'}}>{ds}</td>
+                <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{formula}</td>
+                <td><span className={`tag ${status==='published'?'tag-ok':'tag-gray'}`}>{status}</span></td>
+                <td style={{fontSize:12,color:'var(--tx2)'}}>{owner}</td>
+              </tr>
+            );
+          })}</tbody></table>
         </Crd3>
       )}
 
       {tab==='dimensions'&&(
         <Crd3 title="维度目录">
           <table className="tbl"><thead><tr><th>维度名称</th><th>编码</th><th>数据集</th><th>字段</th><th>类型</th><th>敏感级别</th></tr></thead>
-          <tbody>{SEM_DIMS.map((d,i)=>(
-            <tr key={i}>
-              <td style={{fontWeight:500}}>{d.display}</td>
-              <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{d.name}</td>
-              <td style={{fontSize:12,color:'var(--tx2)'}}>{d.dataset}</td>
-              <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{d.col}</td>
-              <td style={{fontSize:12,color:'var(--tx2)'}}>{d.type}</td>
-              <td><SensTag v={d.sens}/></td>
-            </tr>
-          ))}</tbody></table>
+          <tbody>{dimensions.map((d,i)=>{
+            const name=d.display_name||d.display||d.name;
+            const code=d.name;
+            const ds=d.dataset||d.source_dataset||'—';
+            const col=d.column||d.col||'—';
+            const type=d.type||d.data_type||'—';
+            const sens=d.sensitivity||d.sens||'public';
+            return(
+              <tr key={i}>
+                <td style={{fontWeight:500}}>{name}</td>
+                <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{code}</td>
+                <td style={{fontSize:12,color:'var(--tx2)'}}>{ds}</td>
+                <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{col}</td>
+                <td style={{fontSize:12,color:'var(--tx2)'}}>{type}</td>
+                <td><SensTag v={sens}/></td>
+              </tr>
+            );
+          })}</tbody></table>
         </Crd3>
       )}
 
       {tab==='datasets'&&(
         <Crd3 title="数据集">
           <table className="tbl"><thead><tr><th>数据集名称</th><th>编码</th><th>物理表</th><th>时间字段</th><th>字段数</th></tr></thead>
-          <tbody>{SEM_DATASETS.map((d,i)=>(
-            <tr key={i}>
-              <td style={{fontWeight:500}}>{d.display}</td>
-              <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{d.name}</td>
-              <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{d.table}</td>
-              <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{d.time_field}</td>
-              <td>{d.fields}</td>
-            </tr>
-          ))}</tbody></table>
+          <tbody>{datasets.map((d,i)=>{
+            const name=d.display_name||d.display||d.name;
+            const code=d.name;
+            const tbl=d.physical_table||d.table||'—';
+            const tf=d.time_field||'—';
+            const fc=d.field_count||d.fields||'—';
+            return(
+              <tr key={i}>
+                <td style={{fontWeight:500}}>{name}</td>
+                <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{code}</td>
+                <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{tbl}</td>
+                <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{tf}</td>
+                <td>{fc}</td>
+              </tr>
+            );
+          })}</tbody></table>
         </Crd3>
       )}
 
       {tab==='approvals'&&(
         <Crd3 title="指标状态审批">
           <table className="tbl"><thead><tr><th>指标</th><th>目标状态</th><th>申请人</th><th>原因</th><th>状态</th><th>操作</th></tr></thead>
-          <tbody>{approvals.map((r)=>(
-            <tr key={r.id}>
-              <td style={{fontFamily:'monospace',fontSize:12}}>{r.metric}</td>
-              <td><span className="tag tag-gray">{r.target}</span></td>
-              <td style={{fontSize:12,color:'var(--tx2)'}}>{r.requester}</td>
-              <td style={{fontSize:12,color:'var(--tx2)'}}>{r.reason}</td>
-              <td><span className={`tag ${r.status==='pending'?'tag-warn':r.status==='approved'?'tag-ok':'tag-err'}`}>{r.status}</span></td>
-              <td>{r.status==='pending'?<div style={{display:'flex',gap:6}}><button className="btn btn-primary btn-sm" onClick={()=>approve(r.id)}>通过</button><button className="btn btn-danger btn-sm" onClick={()=>reject(r.id)}>驳回</button></div>:<span style={{fontSize:12,color:'var(--tx3)'}}>已处理</span>}</td>
-            </tr>
-          ))}</tbody></table>
+          <tbody>{effApprovals.map((r)=>{
+            const id=r.id||r.request_id;
+            const metric=r.metric||r.metric_name;
+            const target=r.target||r.requested_status;
+            const status=r.status;
+            return(
+              <tr key={id}>
+                <td style={{fontFamily:'monospace',fontSize:12}}>{metric}</td>
+                <td><span className="tag tag-gray">{target}</span></td>
+                <td style={{fontSize:12,color:'var(--tx2)'}}>{r.requester}</td>
+                <td style={{fontSize:12,color:'var(--tx2)'}}>{r.reason}</td>
+                <td><span className={`tag ${status==='pending'?'tag-warn':status==='approved'?'tag-ok':'tag-err'}`}>{status}</span></td>
+                <td>{status==='pending'?<div style={{display:'flex',gap:6}}><button className="btn btn-primary btn-sm" onClick={()=>approve(id)}>通过</button><button className="btn btn-danger btn-sm" onClick={()=>reject(id)}>驳回</button></div>:<span style={{fontSize:12,color:'var(--tx3)'}}>已处理</span>}</td>
+              </tr>
+            );
+          })}</tbody></table>
         </Crd3>
       )}
 
       {tab==='audit'&&(
         <Crd3 title="审计事件">
           <table className="tbl"><thead><tr><th>事件类型</th><th>租户</th><th>角色</th><th>状态</th><th>说明</th><th>时间</th></tr></thead>
-          <tbody>{SEM_AUDIT.map((e,i)=>(
-            <tr key={i}>
-              <td style={{fontFamily:'monospace',fontSize:12,fontWeight:500}}>{e.type}</td>
-              <td style={{fontSize:12,color:'var(--tx2)'}}>{e.tenant}</td>
-              <td style={{fontSize:12,color:'var(--tx2)'}}>{e.role}</td>
-              <td><span className={`tag ${e.status==='allowed'?'tag-ok':'tag-err'}`}>{e.status}</span></td>
-              <td style={{fontSize:12,color:'var(--tx2)',maxWidth:280}}>{e.msg}</td>
-              <td style={{fontSize:12,color:'var(--tx3)',whiteSpace:'nowrap'}}>{new Date(e.ts*1000).toLocaleString()}</td>
-            </tr>
-          ))}</tbody></table>
+          <tbody>{effAudit.map((e,i)=>{
+            const evType=e.type||e.event_type;
+            const tenant=e.tenant||e.tenant_id;
+            const role=e.role;
+            const status=e.status||e.result;
+            const msg=e.msg||e.message||e.detail;
+            const ts=e.ts||e.created_at;
+            const timeStr=ts?(typeof ts==='number'?new Date(ts*1000).toLocaleString():new Date(ts).toLocaleString()):'—';
+            return(
+              <tr key={i}>
+                <td style={{fontFamily:'monospace',fontSize:12,fontWeight:500}}>{evType}</td>
+                <td style={{fontSize:12,color:'var(--tx2)'}}>{tenant}</td>
+                <td style={{fontSize:12,color:'var(--tx2)'}}>{role}</td>
+                <td><span className={`tag ${status==='allowed'||status==='success'?'tag-ok':'tag-err'}`}>{status}</span></td>
+                <td style={{fontSize:12,color:'var(--tx2)',maxWidth:280}}>{msg}</td>
+                <td style={{fontSize:12,color:'var(--tx3)',whiteSpace:'nowrap'}}>{timeStr}</td>
+              </tr>
+            );
+          })}</tbody></table>
         </Crd3>
       )}
     </>
@@ -1105,25 +1219,39 @@ window.__p3={DevAssistantPage,SemanticLayerPage};
 
 <!-- ── AI Chat ─────────────────────────────────── -->
 <script type="text/babel">
-const SUGS=['今日有哪些 CRITICAL 级别的 DQ 告警？','上个月抗肿瘤药物使用强度趋势如何？','疑似重复患者主要来自哪些系统？','近 30 天 DQ 评分最低的是哪天？'];
+const DEFAULT_SUGS=['今日有哪些 CRITICAL 级别的 DQ 告警？','上个月抗肿瘤药物使用强度趋势如何？','疑似重复患者主要来自哪些系统？','近 30 天 DQ 评分最低的是哪天？'];
+const CHAT_SESSION_ID='sess-'+Math.random().toString(36).slice(2,10);
+
 function AiChat(){
   const [open,setOpen]=React.useState(false);
   const [msgs,setMsgs]=React.useState([]);
   const [input,setInput]=React.useState('');
   const [loading,setLoading]=React.useState(false);
   const [sqlOpen,setSqlOpen]=React.useState({});
+  const [dataOpen,setDataOpen]=React.useState({});
+  const [sugs,setSugs]=React.useState(DEFAULT_SUGS);
   const ref=React.useRef(null);
+
+  React.useEffect(()=>{
+    fetch('/api/chat/suggestions?count=4').then(r=>r.json()).then(d=>{
+      if(d.suggestions&&d.suggestions.length)setSugs(d.suggestions);
+    }).catch(()=>{});
+  },[]);
+
   React.useEffect(()=>{if(ref.current)ref.current.scrollTop=ref.current.scrollHeight;},[msgs,loading]);
+
   const send=async(text)=>{
     const msg=(text||input).trim();if(!msg||loading)return;
     setInput('');setMsgs(p=>[...p,{role:'user',content:msg}]);setLoading(true);
     try{
-      const reply=await window.claude.complete({messages:[{role:'user',content:`你是医院医疗数据治理平台AI助手。用户问：${msg}\n\n请用简洁专业的中文回答（不超过120字）。如涉及数据查询请附参考SQL，用\`\`\`sql和\`\`\`包裹。`}]});
-      const sm=reply.match(/```sql\n?([\s\S]*?)```/);
-      setMsgs(p=>[...p,{role:'bot',content:reply.replace(/```sql[\s\S]*?```/g,'').trim(),sql:sm?.[1]?.trim()}]);
-    }catch{setMsgs(p=>[...p,{role:'bot',content:'服务暂时不可用，请稍后重试。'}]);}
+      const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:CHAT_SESSION_ID,message:msg,user_id:'frontend'})});
+      if(!res.ok)throw new Error('HTTP '+res.status);
+      const d=await res.json();
+      setMsgs(p=>[...p,{role:'bot',content:d.answer||'（无回答）',sql:d.sql||'',data:d.data||[],row_count:d.row_count||0}]);
+    }catch(e){setMsgs(p=>[...p,{role:'bot',content:'服务暂时不可用，请稍后重试。（'+e.message+')'}]);}
     finally{setLoading(false);}
   };
+
   return(
     <>
       {!open&&<div className="chat-fab" onClick={()=>setOpen(true)} title="AI 数据助手"><i className="ri-robot-2-line"/></div>}
@@ -1141,19 +1269,36 @@ function AiChat(){
               <div style={{fontSize:12,color:'var(--tx3)',marginBottom:20}}>可以用自然语言向我提问</div>
               <div style={{width:'100%',display:'flex',flexDirection:'column',gap:8}}>
                 <div style={{fontSize:12,color:'var(--tx3)',marginBottom:2}}>推荐问题：</div>
-                {SUGS.map((s,i)=><div key={i} className="chip" onClick={()=>send(s)}>{s}</div>)}
+                {sugs.map((s,i)=><div key={i} className="chip" onClick={()=>send(s)}>{s}</div>)}
               </div>
             </div>
           )}
           {msgs.map((m,i)=>(
             <div key={i} className={`msg-row ${m.role}`}>
               <div className="msg-bubble">{m.content}</div>
-              {m.sql&&<div style={{marginTop:4,maxWidth:'90%'}}>
-                <button className="sql-btn" onClick={()=>setSqlOpen(p=>({...p,[i]:!p[i]}))}>
-                  <i className="ri-code-s-slash-line" style={{marginRight:4}}/>{sqlOpen[i]?'隐藏 SQL':'查看 SQL'}
-                </button>
-                {sqlOpen[i]&&<div className="sql-block">{m.sql}</div>}
-              </div>}
+              {m.role==='bot'&&m.sql&&(
+                <div style={{marginTop:4,maxWidth:'90%'}}>
+                  <button className="sql-btn" onClick={()=>setSqlOpen(p=>({...p,[i]:!p[i]}))}>
+                    <i className="ri-code-s-slash-line" style={{marginRight:4}}/>{sqlOpen[i]?'隐藏 SQL':'查看 SQL'}
+                  </button>
+                  {sqlOpen[i]&&<div className="sql-block">{m.sql}</div>}
+                </div>
+              )}
+              {m.role==='bot'&&m.data&&m.data.length>0&&(
+                <div style={{marginTop:4,maxWidth:'94%'}}>
+                  <button className="sql-btn" onClick={()=>setDataOpen(p=>({...p,[i]:!p[i]}))}>
+                    <i className="ri-table-line" style={{marginRight:4}}/>{dataOpen[i]?'收起数据':'查看数据'} ({m.row_count} 行)
+                  </button>
+                  {dataOpen[i]&&(
+                    <div style={{overflowX:'auto',marginTop:6,borderRadius:6,border:'1px solid var(--card-b)'}}>
+                      <table className="tbl" style={{fontSize:11.5}}>
+                        <thead><tr>{Object.keys(m.data[0]).map(c=><th key={c}>{c}</th>)}</tr></thead>
+                        <tbody>{m.data.slice(0,10).map((r,ri)=><tr key={ri}>{Object.values(r).map((v,vi)=><td key={vi}>{String(v)}</td>)}</tr>)}</tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
           {loading&&<div className="msg-row bot"><div className="msg-bubble"><div className="dot-anim"><span/><span/><span/></div></div></div>}
