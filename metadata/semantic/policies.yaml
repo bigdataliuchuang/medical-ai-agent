@@ -1,0 +1,36 @@
+version: "0.1"
+policies:
+  - tenant_id: hospital-a
+    role: analyst
+    allowed_metrics:
+      - antitumor_drug_amount
+      - patient_count
+    allowed_dimensions:
+      - stat_date
+      - dept_code
+      - dept_name
+      - drug_name
+      - mpi_id
+    allow_sensitive_dimensions: false
+
+  - tenant_id: hospital-a
+    role: data_steward
+    allowed_metrics:
+      - antitumor_drug_amount
+      - patient_count
+    allowed_dimensions:
+      - stat_date
+      - dept_code
+      - dept_name
+      - drug_name
+      - mpi_id
+    allow_sensitive_dimensions: true
+
+  - tenant_id: hospital-a
+    role: viewer
+    allowed_metrics:
+      - patient_count
+    allowed_dimensions:
+      - stat_date
+      - dept_name
+    allow_sensitive_dimensions: false

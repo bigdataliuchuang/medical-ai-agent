@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 import uuid
 from pathlib import Path
@@ -37,6 +38,10 @@ from ai_data_agent.api.models import (
 from ai_data_agent.config import DataAgentConfig
 from ai_data_agent.executor.doris import DorisExecutionError
 from ai_data_agent.metadata import MetadataRepository
+from ai_data_agent.semantic_service.api import router as semantic_router
+from ai_data_agent.semantic_service.audit import SQLiteSemanticAuditStore
+from ai_data_agent.semantic_service.catalog import SemanticCatalog
+from ai_data_agent.semantic_service.service import SemanticLayerService
 from ai_data_agent.text2sql.generator import SqlGenerationError
 
 logger = logging.getLogger(__name__)
@@ -172,6 +177,13 @@ def create_app(config_path: str, metadata_root: str = "ai-data-agent/metadata") 
     app.state.metadata = metadata
     app.state.query_services = build_query_services(config, metadata)
     app.state.memory = ConversationMemory()
+    semantic_catalog = SemanticCatalog.load(Path(metadata_root) / "semantic")
+    semantic_audit_path = os.getenv("SEMANTIC_AUDIT_DB_PATH", "data/semantic_audit.db")
+    app.state.semantic_service = SemanticLayerService(
+        semantic_catalog,
+        query_executor=app.state.query_services.query_executor,
+        audit_store=SQLiteSemanticAuditStore(semantic_audit_path),
+    )
     # In-process counters for /metrics
     app.state.metrics = {
         "total_queries": 0,
@@ -191,6 +203,7 @@ def create_app(config_path: str, metadata_root: str = "ai-data-agent/metadata") 
     app.get("/health", response_model=HealthResponse)(_health_endpoint)
     app.get("/health/ready", response_model=HealthResponse)(_readiness_endpoint)
     app.get("/metrics", response_model=MetricsResponse)(_metrics_endpoint)
+    app.include_router(semantic_router)
 
     return app
 

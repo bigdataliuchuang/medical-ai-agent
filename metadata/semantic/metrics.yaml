@@ -1,0 +1,39 @@
+version: "0.1"
+metrics:
+  - name: antitumor_drug_amount
+    display_name: "抗肿瘤药物使用金额"
+    description: "抗肿瘤药物医嘱或费用金额合计。"
+    dataset: tumor_drug_usage
+    formula: "SUM(drug_amount)"
+    dimensions:
+      - stat_date
+      - dept_code
+      - dept_name
+      - drug_name
+    filters:
+      - field: drug_category
+        op: eq
+        value: ANTITUMOR
+    version: "1.0.0"
+    status: published
+    owner: data-governance
+    approved_by: chief-data-office
+    lineage:
+      upstream:
+        - dwd.dwd_order
+        - dim.dim_drug
+      serving_table: dws.dws_tumor_drug_usage_1d
+
+  - name: patient_count
+    display_name: "患者数"
+    description: "患者主索引汇总患者数量。"
+    dataset: patient_mpi_summary
+    formula: "SUM(patient_count)"
+    dimensions:
+      - stat_date
+      - mpi_id
+    filters: []
+    version: "1.0.0"
+    status: published
+    owner: master-data
+    approved_by: chief-data-office

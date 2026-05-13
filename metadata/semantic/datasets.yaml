@@ -1,0 +1,26 @@
+version: "0.1"
+datasets:
+  - name: tumor_drug_usage
+    display_name: "抗肿瘤药物使用汇总"
+    table: dws.dws_tumor_drug_usage_1d
+    time_field: stat_date
+    fields:
+      - stat_date
+      - dept_code
+      - dept_name
+      - drug_code
+      - drug_name
+      - drug_amount
+      - patient_count
+      - drug_category
+
+  - name: patient_mpi_summary
+    display_name: "患者主索引汇总"
+    table: ads.ads_patient_mpi_summary
+    time_field: stat_date
+    fields:
+      - stat_date
+      - mpi_id
+      - source_system
+      - patient_count
+      - pending_review_cnt

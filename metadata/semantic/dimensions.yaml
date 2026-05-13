@@ -1,0 +1,39 @@
+version: "0.1"
+dimensions:
+  - name: stat_date
+    display_name: "统计日期"
+    dataset: tumor_drug_usage
+    column: stat_date
+    data_type: date
+    sensitivity: public
+
+  - name: dept_code
+    display_name: "科室编码"
+    dataset: tumor_drug_usage
+    column: dept_code
+    data_type: string
+    sensitivity: internal
+
+  - name: dept_name
+    display_name: "科室名称"
+    dataset: tumor_drug_usage
+    column: dept_name
+    data_type: string
+    sensitivity: public
+    hierarchy:
+      - hospital
+      - department
+
+  - name: drug_name
+    display_name: "药品名称"
+    dataset: tumor_drug_usage
+    column: drug_name
+    data_type: string
+    sensitivity: public
+
+  - name: mpi_id
+    display_name: "MPI 患者标识"
+    dataset: patient_mpi_summary
+    column: mpi_id
+    data_type: string
+    sensitivity: restricted

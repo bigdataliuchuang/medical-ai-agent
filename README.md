@@ -65,22 +65,24 @@ github/
 
 ### Semantic Layer 状态
 
-项目已有轻量语义层雏形，但还不是完整的企业级 Semantic Layer。
+项目现在包含平台化 Semantic Layer 后端的第一版，并在 `medical-platform` 中提供前端管理/查询入口。
 
 当前已具备：
 
-- `metadata/metric_catalog.yaml`：维护指标名称、展示名、描述、来源表、计算公式、时间字段、维度和过滤条件。
-- `src/ai_data_agent/semantic_layer/metrics.py`：提供 `MetricResolver`，用于按名称或文本匹配指标。
-- GraphRAG 上下文构建会把命中的指标、维度和 DQ 规则带入 Text2SQL Prompt。
-- 评估用例会检查 SQL 是否包含期望指标和维度。
+- `metadata/semantic/datasets.yaml`：维护语义数据集和物理表映射。
+- `metadata/semantic/dimensions.yaml`：维护统一维度、字段映射、层级和敏感级别。
+- `metadata/semantic/metrics.yaml`：维护指标公式、版本、状态、owner、审批信息和血缘。
+- `metadata/semantic/policies.yaml`：维护租户/角色到指标、维度和敏感字段的访问策略。
+- `src/ai_data_agent/semantic_service/`：提供 catalog、DSL、policy、compiler、service、audit 和 API。
+- `/api/v1/semantic/*`：提供指标、维度、数据集、SQL 编译、语义查询和审计事件接口。
+- `medical-platform` 前端新增 `语义层` 页面，支持目录浏览、DSL 查询、SQL 预览、结果表格和审计查看。
 
 当前还未形成完整能力：
 
-- 独立维度目录、维表映射和层级关系。
-- 指标口径版本管理、审批流和血缘变更治理。
-- 统一指标 SQL 编译器或指标查询 DSL。
-- 统一权限、敏感字段策略和多租户口径隔离。
-- 面向 BI / API 的稳定语义查询服务。
+- 审计事件还未持久化落库。
+- 指标审批/发布/下线还只是元数据字段，尚未提供交互式工作流。
+- 跨数据集 Join 编译暂未开放。
+- 面向 BI 的稳定 API 契约还需要进一步固化。
 
 ## 快速启动
 

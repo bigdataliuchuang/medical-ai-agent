@@ -4,23 +4,23 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "anthropic")  # anthropic | openai
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "anthropic").lower()  # anthropic | openai | openai-compatible
 LLM_MODEL = os.getenv("LLM_MODEL", "claude-haiku-4-5-20251001")
 LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "1024"))
 LLM_TIMEOUT = int(os.getenv("LLM_TIMEOUT", "30"))
 
 # ── 统一 LLM 调用入口（同步 + 异步）────────────────────────────────────────────
 
-if LLM_PROVIDER == "openai":
+if LLM_PROVIDER in {"openai", "openai-compatible"}:
     from openai import OpenAI, AsyncOpenAI
     _client = OpenAI(
-        api_key=os.getenv("OPENAI_API_KEY"),
-        base_url=os.getenv("OPENAI_BASE_URL"),
+        api_key=os.getenv("OPENAI_API_KEY") or os.getenv("LLM_API_KEY"),
+        base_url=os.getenv("OPENAI_BASE_URL") or os.getenv("LLM_BASE_URL"),
         timeout=LLM_TIMEOUT,
     )
     _async_client = AsyncOpenAI(
-        api_key=os.getenv("OPENAI_API_KEY"),
-        base_url=os.getenv("OPENAI_BASE_URL"),
+        api_key=os.getenv("OPENAI_API_KEY") or os.getenv("LLM_API_KEY"),
+        base_url=os.getenv("OPENAI_BASE_URL") or os.getenv("LLM_BASE_URL"),
         timeout=LLM_TIMEOUT,
     )
 
