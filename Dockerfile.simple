@@ -12,6 +12,7 @@ COPY audit/ audit/
 COPY indexer/ indexer/
 COPY memory/ memory/
 COPY schema/ schema/
+COPY frontend/ frontend/
 RUN mkdir -p data
 
 EXPOSE 8000
