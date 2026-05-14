@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>医疗数据治理平台 — 视觉重设计</title>
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+  <style>
+    :root {
+      --sw:228px;--sw-c:64px;--th:56px;
+      --s-bg1:#1a2d4a;--s-bg2:#0f1825;
+      --s-hover:rgba(255,255,255,.05);
+      --s-active-bg:rgba(59,130,246,.13);--s-active-bar:#3b82f6;
+      --s-text:rgba(255,255,255,.5);--s-text-h:rgba(255,255,255,.88);--s-text-a:#fff;
+      --s-div:rgba(255,255,255,.08);
+      --t-bg:#fff;--t-border:#eaecf0;
+      --bg:#f0f3f7;--card:#fff;--card-b:#e2e8f0;
+      --card-sh:0 1px 2px rgba(0,0,0,.04),0 2px 8px rgba(0,0,0,.06);
+      --card-sh-h:0 4px 16px rgba(0,0,0,.1),0 1px 4px rgba(0,0,0,.06);
+      --accent:#2563eb;--accent-d:#1d4ed8;--accent-l:#eff6ff;
+      --tx1:#0f172a;--tx2:#64748b;--tx3:#94a3b8;
+      --ok:#059669;--ok-bg:#f0fdf4;--ok-b:#d1fae5;
+      --warn:#d97706;--warn-bg:#fffbeb;--warn-b:#fde68a;
+      --err:#dc2626;--err-bg:#fef2f2;--err-b:#fecaca;
+      --r:8px;--font:'PingFang SC','Hiragino Sans GB','Microsoft YaHei',system-ui,sans-serif;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%}
+    body{font-family:var(--font);font-size:14px;color:var(--tx1);background:var(--bg);-webkit-font-smoothing:antialiased}
+    #root{display:flex;height:100vh;overflow:hidden}
+    /* sidebar */
+    .sidebar{width:var(--sw);min-width:var(--sw);background:linear-gradient(180deg,var(--s-bg1) 0%,var(--s-bg2) 100%);display:flex;flex-direction:column;transition:width .2s,min-width .2s;overflow:hidden;z-index:10;flex-shrink:0;box-shadow:2px 0 12px rgba(0,0,0,.15)}
+    .sidebar.col{width:var(--sw-c);min-width:var(--sw-c)}
+    .s-logo{height:var(--th);padding:0 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--s-div);flex-shrink:0}
+    .s-logo-mark{width:32px;height:32px;background:linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;flex-shrink:0;box-shadow:0 2px 8px rgba(59,130,246,.4)}
+    .s-logo-text{color:#fff;font-weight:700;font-size:14px;white-space:nowrap;letter-spacing:-.2px}
+    .s-logo-sub{color:rgba(255,255,255,.3);font-size:10.5px;margin-top:2px;white-space:nowrap;letter-spacing:.2px}
+    .s-nav{flex:1;padding:8px 0;overflow-y:auto;overflow-x:hidden}
+    .s-nav::-webkit-scrollbar{display:none}
+    .nav-group-lbl{padding:14px 18px 3px;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:rgba(255,255,255,.22);font-weight:600;white-space:nowrap}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:8px 18px;cursor:pointer;color:var(--s-text);transition:color .12s,background .12s;position:relative;font-size:13.5px;user-select:none;white-space:nowrap;margin:1px 8px;border-radius:6px}
+    .nav-item:hover{color:var(--s-text-h);background:var(--s-hover)}
+    .nav-item.act{color:var(--s-text-a);background:var(--s-active-bg)}
+    .nav-item.act::before{content:'';position:absolute;left:-8px;top:6px;bottom:6px;width:3px;background:var(--s-active-bar);border-radius:0 2px 2px 0}
+    .nav-item i{font-size:16px;flex-shrink:0;width:20px;text-align:center}
+    .s-foot{padding:8px 0;border-top:1px solid var(--s-div);flex-shrink:0}
+    .s-user{display:flex;align-items:center;gap:10px;padding:10px 18px;color:rgba(255,255,255,.65);font-size:13px;cursor:pointer}
+    .s-user:hover{color:rgba(255,255,255,.9)}
+    .s-avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#2563eb 0%,#7c3aed 100%);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;box-shadow:0 1px 4px rgba(37,99,235,.4)}
+    /* main */
+    .main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+    .topbar{height:var(--th);background:var(--t-bg);border-bottom:1px solid var(--t-border);box-shadow:0 1px 4px rgba(0,0,0,.05);display:flex;align-items:center;padding:0 24px;gap:12px;flex-shrink:0}
+    .live-stat{display:flex;align-items:center;gap:6px;padding:4px 12px;background:#f8fafc;border-radius:6px;border:1px solid var(--card-b);cursor:default}
+    .live-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+    .content{flex:1;overflow-y:auto;padding:20px 24px}
+    .content::-webkit-scrollbar{width:5px}
+    .content::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+    /* cards */
+    .card{background:var(--card);border:1px solid var(--card-b);border-radius:var(--r);box-shadow:var(--card-sh);transition:box-shadow .15s}
+    .card:hover{box-shadow:var(--card-sh-h)}
+    .card-hd{padding:14px 18px;border-bottom:1px solid var(--card-b);font-size:13.5px;font-weight:600;display:flex;align-items:center;justify-content:space-between}
+    .card-bd{padding:18px}
+    /* kpi — user chose style 2: left border + tinted bg */
+    .kpi{border-radius:var(--r);padding:18px 20px 16px 20px;box-shadow:var(--card-sh);position:relative;overflow:hidden;border:1px solid var(--card-b)}
+    .kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:4px 0 0 4px}
+    .kpi-normal{background:linear-gradient(135deg,#f0fdf4 0%,#fff 55%);border-color:var(--ok-b)}
+    .kpi-normal::before{background:var(--ok)}
+    .kpi-error{background:linear-gradient(135deg,#fff1f2 0%,#fff 55%);border-color:var(--err-b)}
+    .kpi-error::before{background:var(--err)}
+    .kpi-warning{background:linear-gradient(135deg,#fffbeb 0%,#fff 55%);border-color:var(--warn-b)}
+    .kpi-warning::before{background:var(--warn)}
+    .kpi-neutral{background:#fff;border-color:var(--card-b)}
+    .kpi-neutral::before{background:#94a3b8}
+    .kpi-lbl{font-size:11.5px;color:var(--tx2);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;letter-spacing:.1px}
+    .kpi-val{font-size:32px;font-weight:800;line-height:1;letter-spacing:-1px}
+    .kpi-foot{margin-top:10px;font-size:12px;color:var(--tx2);display:flex;align-items:center;gap:5px}
+    /* grids */
+    .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+    .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+    .g2{display:grid;grid-template-columns:3fr 2fr;gap:16px}
+    .g2e{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    /* table */
+    .tbl{width:100%;border-collapse:collapse;font-size:13px}
+    .tbl thead{background:#f8fafc}
+    .tbl th{padding:9px 14px;text-align:left;font-weight:600;color:var(--tx2);font-size:11.5px;border-bottom:2px solid var(--card-b);letter-spacing:.2px;text-transform:uppercase}
+    .tbl td{padding:10px 14px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+    .tbl tr:last-child td{border-bottom:none}
+    .tbl tbody tr:hover td{background:#f5f8ff}
+    /* tags */
+    .tag{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600;letter-spacing:.1px}
+    .tag-ok{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-b)}
+    .tag-warn{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-b)}
+    .tag-err{background:var(--err-bg);color:var(--err);border:1px solid var(--err-b)}
+    .tag-blue{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+    .tag-purple{background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe}
+    .tag-gray{background:#f1f5f9;color:var(--tx2);border:1px solid #e2e8f0}
+    .dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
+    .dot-ok{background:var(--ok)}.dot-warn{background:var(--warn)}.dot-err{background:var(--err)}
+    /* tabs */
+    .tabs{display:flex;border-bottom:1px solid var(--card-b);margin-bottom:16px}
+    .tab{padding:10px 16px;font-size:13.5px;color:var(--tx2);cursor:pointer;border-bottom:2px solid transparent;transition:color .12s;margin-bottom:-1px;user-select:none}
+    .tab:hover{color:var(--tx1)}.tab.act{color:var(--accent);border-bottom-color:var(--accent);font-weight:500}
+    /* buttons */
+    .btn{padding:6px 14px;border-radius:var(--r);font-size:13px;cursor:pointer;transition:all .12s;font-family:var(--font);line-height:1.5;display:inline-flex;align-items:center;gap:5px}
+    .btn-primary{background:var(--accent);color:#fff;border:none}.btn-primary:hover{background:#1d4ed8}.btn-primary:disabled{background:#93c5fd;cursor:not-allowed}
+    .btn-default{background:#fff;color:var(--tx1);border:1px solid var(--card-b)}.btn-default:hover{background:#f8fafc}
+    .btn-danger{background:#fff;color:var(--err);border:1px solid #fca5a5}.btn-danger:hover{background:var(--err-bg)}
+    .btn-sm{padding:3px 10px;font-size:12px}
+    /* form */
+    .filter-row{display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap}
+    .sel{padding:6px 10px;border:1px solid var(--card-b);border-radius:var(--r);font-size:13px;font-family:var(--font);outline:none;color:var(--tx1);background:#fff;cursor:pointer}
+    .sel:focus{border-color:var(--accent)}
+    .fi{padding:7px 10px;border:1px solid var(--card-b);border-radius:var(--r);font-size:13px;font-family:var(--font);outline:none;width:100%}
+    .fi:focus{border-color:var(--accent)}
+    textarea.fi{resize:vertical;line-height:1.6}
+    .fl{font-size:12px;color:var(--tx2);margin-bottom:4px}
+    /* code */
+    .code-block{background:#0f172a;color:#e2e8f0;border-radius:var(--r);padding:12px 14px;font-size:12px;font-family:'SF Mono','Fira Code',monospace;white-space:pre-wrap;line-height:1.7;overflow-x:auto}
+    /* lineage */
+    .l-flow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px}
+    .l-node{padding:3px 10px;border-radius:20px;font-size:12px;background:var(--accent-l);color:var(--accent);border:1px solid #bfdbfe}
+    .l-arr{color:var(--tx3);font-size:13px}
+    /* sensitivity */
+    .tag-rest{background:var(--err-bg);color:var(--err)}.tag-int{background:var(--warn-bg);color:var(--warn)}.tag-pub{background:var(--ok-bg);color:var(--ok)}
+    /* placeholder */
+    .ph{display:flex;flex-direction:column;align-items:center;justify-content:center;height:380px;color:var(--tx3);gap:12px}
+    .ph i{font-size:48px}
+    /* chat */
+    .chat-fab{position:fixed;right:24px;bottom:24px;width:48px;height:48px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:21px;cursor:pointer;z-index:100;box-shadow:0 4px 14px rgba(37,99,235,.45);transition:transform .15s,box-shadow .15s}
+    .chat-fab:hover{transform:scale(1.07)}
+    .chat-panel{position:fixed;right:0;top:0;bottom:0;width:400px;background:#fff;border-left:1px solid var(--card-b);box-shadow:-4px 0 24px rgba(0,0,0,.09);display:flex;flex-direction:column;z-index:200;transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1)}
+    .chat-panel.open{transform:translateX(0)}
+    .chat-hd{height:52px;background:var(--s-bg1);color:#fff;display:flex;align-items:center;padding:0 16px;gap:10px;flex-shrink:0}
+    .chat-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+    .chat-msgs::-webkit-scrollbar{width:4px}
+    .chat-msgs::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:2px}
+    .msg-row{display:flex;flex-direction:column}
+    .msg-row.user{align-items:flex-end}.msg-row.bot{align-items:flex-start}
+    .msg-bubble{padding:9px 13px;border-radius:12px;font-size:13.5px;line-height:1.6;white-space:pre-wrap;word-break:break-all;max-width:88%}
+    .msg-row.user .msg-bubble{background:var(--accent);color:#fff;border-radius:12px 12px 3px 12px}
+    .msg-row.bot .msg-bubble{background:#f1f5f9;color:var(--tx1);border-radius:12px 12px 12px 3px}
+    .sql-block{background:#0f172a;color:#e2e8f0;border-radius:6px;padding:10px 12px;font-size:11.5px;font-family:'SF Mono','Fira Code',monospace;white-space:pre-wrap;margin-top:6px;line-height:1.7}
+    .sql-btn{font-size:12px;color:var(--accent);cursor:pointer;background:none;border:none;padding:4px 0 0;font-family:var(--font)}
+    .chip{display:inline-block;padding:6px 12px;border-radius:20px;background:#f1f5f9;color:var(--tx2);font-size:12.5px;cursor:pointer;border:1px solid var(--card-b);transition:all .12s;text-align:left;width:100%}
+    .chip:hover{background:var(--accent-l);color:var(--accent);border-color:#bfdbfe}
+    .chat-inp-row{padding:12px;border-top:1px solid var(--card-b);display:flex;gap:8px;flex-shrink:0}
+    .chat-inp-row input{flex:1;padding:8px 12px;border:1px solid var(--card-b);border-radius:6px;font-size:13.5px;font-family:var(--font);outline:none;transition:border-color .15s}
+    .chat-inp-row input:focus{border-color:var(--accent)}
+    .chat-inp-row button{padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:15px}
+    .chat-inp-row button:disabled{background:#cbd5e1;cursor:not-allowed}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+    .dot-anim{display:inline-flex;gap:4px;align-items:center;padding:2px 0}
+    .dot-anim span{width:6px;height:6px;border-radius:50%;background:var(--tx3);display:inline-block}
+    .dot-anim span:nth-child(1){animation:blink 1.2s 0s infinite}
+    .dot-anim span:nth-child(2){animation:blink 1.2s .2s infinite}
+    .dot-anim span:nth-child(3){animation:blink 1.2s .4s infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+    .spin-dark{border-color:rgba(37,99,235,.2);border-top-color:var(--accent)}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+
+<!-- ── 共用组件 ──────────────────────────────────── -->
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ECharts 专业调色板
+if (window.echarts) {
+  window.echarts.registerTheme('med', {
+    color: ['#2563eb','#0891b2','#7c3aed','#059669','#d97706','#dc2626','#f59e0b','#10b981'],
+    backgroundColor: 'transparent',
+    categoryAxis: { axisLine: { lineStyle: { color: '#e2e8f0' } }, axisTick: { show: false }, axisLabel: { color: '#94a3b8', fontSize: 11 } },
+    valueAxis: { splitLine: { lineStyle: { color: '#f1f5f9', type: 'dashed' } }, axisLabel: { color: '#94a3b8', fontSize: 11 } },
+  });
+}
+
+function KpiCard({ title, value, unit, status='normal', precision, sub, icon }) {
+  const displayed = precision != null ? Number(value).toFixed(precision) : value;
+  const statusIcon = { normal:'ri-arrow-up-line', error:'ri-alert-fill', warning:'ri-alarm-warning-line', neutral:null };
+  const statusColor = { normal:'var(--ok)', error:'var(--err)', warning:'var(--warn)', neutral:'var(--tx2)' };
+  const si = statusIcon[status]; const sc = statusColor[status];
+  return (
+    <div className={`kpi kpi-${status}`}>
+      <div className="kpi-lbl">
+        <span>{title}</span>
+        {(icon || si) && <i className={icon || si} style={{fontSize:14,color:sc,opacity:.7}}/>}
+      </div>
+      <div style={{display:'flex',alignItems:'baseline',gap:5,margin:'4px 0 0'}}>
+        <div className="kpi-val" style={{color:sc}}>{displayed}</div>
+        {unit && <span style={{fontSize:13,color:'var(--tx2)',fontWeight:500}}>{unit}</span>}
+      </div>
+      {sub && <div className="kpi-foot"><span>{sub}</span></div>}
+    </div>
+  );
+}
+
+function EChart({ option, height=260 }) {
+  const dr=useRef(null), cr=useRef(null), os=JSON.stringify(option);
+  useEffect(()=>{
+    if(!dr.current||!window.echarts)return;
+    cr.current=window.echarts.init(dr.current,'med');
+    cr.current.setOption(option);
+    const ro=new ResizeObserver(()=>cr.current&&cr.current.resize());
+    ro.observe(dr.current);
+    return()=>{ro.disconnect();cr.current&&cr.current.dispose();};
+  },[]);
+  useEffect(()=>{cr.current&&cr.current.setOption(JSON.parse(os),{notMerge:true});},[os]);
+  return <div ref={dr} style={{height,width:'100%'}}/>;
+}
+
+const NAV_GROUPS = [
+  { label:'数据监控', items:[
+    {key:'dashboard',icon:'ri-dashboard-2-line',    label:'首页'},
+    {key:'dq',       icon:'ri-shield-check-line',   label:'数据质量'},
+    {key:'mpi',      icon:'ri-group-line',           label:'患者主数据'},
+  ]},
+  { label:'临床分析', items:[
+    {key:'drug',     icon:'ri-medicine-bottle-line', label:'药物监测'},
+    {key:'expense',  icon:'ri-bar-chart-2-line',     label:'费用分析'},
+    {key:'inpatient',icon:'ri-hospital-line',        label:'住院质量'},
+  ]},
+  { label:'数据管理', items:[
+    {key:'dev',      icon:'ri-robot-line',           label:'AI 指标开发'},
+    {key:'semantic', icon:'ri-database-2-line',      label:'语义层'},
+  ]},
+];
+const NAV = NAV_GROUPS.flatMap(g => g.items);
+
+function LogoMark() {
+  return (
+    <div className="s-logo-mark">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <path d="M9 1.5L2 4.5v5c0 4 3 7.5 7 8.5 4-1 7-4.5 7-8.5v-5L9 1.5z" fill="rgba(255,255,255,.15)" stroke="rgba(255,255,255,.5)" strokeWidth="1"/>
+        <polyline points="3.5,9 5.5,9 6.5,6.5 8.5,11.5 10.5,6.5 12,9 13,8 14.5,8" fill="none" stroke="white" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    </div>
+  );
+}
+
+function Sidebar({active,onNav,col,onToggle}){
+  return(
+    <aside className={`sidebar${col?' col':''}`}>
+      <div className="s-logo">
+        <LogoMark/>
+        {!col&&<div><div className="s-logo-text">医疗数据治理</div><div className="s-logo-sub">Clinical Data Platform</div></div>}
+      </div>
+      <nav className="s-nav">
+        {NAV_GROUPS.map(group=>(
+          <div key={group.label}>
+            {!col&&<div className="nav-group-lbl">{group.label}</div>}
+            {group.items.map(n=>(
+              <div key={n.key} className={`nav-item${active===n.key?' act':''}`}
+                onClick={()=>onNav(n.key)} title={col?n.label:''}>
+                <i className={n.icon}/>{!col&&<span>{n.label}</span>}
+              </div>
+            ))}
+          </div>
+        ))}
+      </nav>
+      <div className="s-foot">
+        {!col&&<div className="s-user"><div className="s-avatar">管</div><div><div style={{fontSize:13,color:'rgba(255,255,255,.8)',fontWeight:500}}>管理员</div><div style={{fontSize:11,color:'rgba(255,255,255,.35)',marginTop:1}}>Administrator</div></div></div>}
+        <div className="nav-item" onClick={onToggle} style={{marginTop:4}} title={col?'展开':'收起'}>
+          <i className={col?'ri-layout-right-2-line':'ri-layout-left-2-line'}/>{!col&&<span style={{fontSize:12.5}}>收起侧栏</span>}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function Topbar({title, page}){
+  return(
+    <header className="topbar">
+      <div style={{display:'flex',alignItems:'center',gap:8,flex:1}}>
+        <span style={{fontSize:12,color:'var(--tx3)'}}>医疗数据治理</span>
+        <i className="ri-arrow-right-s-line" style={{color:'var(--tx3)',fontSize:14}}/>
+        <span style={{fontWeight:600,fontSize:15,color:'var(--tx1)'}}>{title}</span>
+      </div>
+      <div style={{display:'flex',alignItems:'center',gap:8}}>
+        <div className="live-stat">
+          <span className="live-dot" style={{background:'var(--ok)'}}/>
+          <span style={{fontSize:11,color:'var(--tx2)'}}>DQ</span>
+          <span style={{fontSize:13,fontWeight:700,color:'var(--ok)'}}>87.3</span>
+        </div>
+        <div className="live-stat">
+          <span className="live-dot" style={{background:'var(--err)'}}/>
+          <span style={{fontSize:11,color:'var(--tx2)'}}>告警</span>
+          <span style={{fontSize:13,fontWeight:700,color:'var(--err)'}}>2</span>
+        </div>
+      </div>
+      <div style={{display:'flex',alignItems:'center',gap:16,marginLeft:12}}>
+        <div style={{position:'relative',cursor:'pointer'}}>
+          <i className="ri-notification-3-line" style={{fontSize:18,color:'var(--tx2)'}}/>
+          <span style={{position:'absolute',top:-5,right:-5,width:16,height:16,background:'var(--err)',borderRadius:'50%',fontSize:9,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,border:'2px solid #fff'}}>2</span>
+        </div>
+        <i className="ri-question-line" style={{fontSize:18,color:'var(--tx2)',cursor:'pointer'}}/>
+        <div style={{width:1,height:20,background:'var(--card-b)'}}/>
+        <div style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
+          <div className="s-avatar" style={{width:32,height:32,fontSize:13}}>管</div>
+          <div>
+            <div style={{fontSize:13,fontWeight:500,color:'var(--tx1)',lineHeight:1.3}}>管理员</div>
+            <div style={{fontSize:11,color:'var(--tx3)',lineHeight:1}}>admin</div>
+          </div>
+          <i className="ri-arrow-down-s-line" style={{color:'var(--tx3)',fontSize:14}}/>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function Card({title,extra,children,style}){
+  return(
+    <div className="card" style={style}>
+      {title!=null&&<div className="card-hd"><span>{title}</span>{extra}</div>}
+      <div className="card-bd">{children}</div>
+    </div>
+  );
+}
+
+function SevTag({sev}){
+  if(sev==='CRITICAL')return<span className="tag tag-err">● CRITICAL</span>;
+  if(sev==='HIGH')return<span className="tag tag-warn">● HIGH</span>;
+  return<span className="tag tag-blue">● MEDIUM</span>;
+}
+
+function Placeholder({page}){
+  return(
+    <div className="ph">
+      <i className="ri-draft-line"/>
+      <div style={{fontSize:15,color:'var(--tx2)',fontWeight:500}}>{page}</div>
+      <div style={{fontSize:13}}>该模块正在设计中，敬请期待</div>
+    </div>
+  );
+}
+
+window.__sc={KpiCard,EChart,Sidebar,Topbar,Card,SevTag,Placeholder,NAV};
+</script>
+
+<!-- ── 核心页面：Dashboard + DQ + Drug ───────────── -->
+<script type="text/babel">
+const {KpiCard:KC,EChart:EC,Card:Crd,SevTag:ST}=window.__sc;
+
+const TREND=(()=>{const o=[],b=new Date('2026-04-14');for(let i=0;i<30;i++){const d=new Date(b);d.setDate(d.getDate()+i);o.push({date:`${d.getMonth()+1}/${d.getDate()}`,score:parseFloat((85+Math.sin(i*.4)*4+(Math.random()-.5)*2.5).toFixed(1))});}return o;})();
+const PIPELINE=[{layer:'ODS 原始层',updated:'06:15',status:'ok'},{layer:'DWD 明细层',updated:'07:02',status:'ok'},{layer:'DWS 汇总层',updated:'07:45',status:'error'},{layer:'ADS 服务层',updated:'08:30',status:'ok'}];
+const ALERTS=[{time:'08:42',rule:'抗肿瘤药物用量异常检测',table:'ads_drug_usage',sev:'CRITICAL',n:23},{time:'08:15',rule:'主键唯一性校验失败',table:'dwd_patient_fact',sev:'HIGH',n:7},{time:'07:55',rule:'空值率超阈值',table:'ods_inpatient',sev:'HIGH',n:142},{time:'07:32',rule:'费用合理性检查',table:'ads_expense',sev:'MEDIUM',n:31},{time:'06:18',rule:'患者ID重复检测',table:'dwd_patient_fact',sev:'HIGH',n:5}];
+const DQ_LAYERS=[{layer:'ODS',score:92.1,critical:0,high:2},{layer:'DWD',score:88.5,critical:1,high:5},{layer:'DWS',score:84.2,critical:1,high:3},{layer:'ADS',score:79.3,critical:0,high:8}];
+const DQ_RULES=[{name:'主键唯一性',table:'dwd_patient_fact',layer:'DWD',sev:'CRITICAL',pass:false,last:'08:15'},{name:'抗肿瘤药物用量合理性',table:'ads_drug_usage',layer:'ADS',sev:'CRITICAL',pass:false,last:'08:42'},{name:'空值率阈值',table:'ods_inpatient',layer:'ODS',sev:'HIGH',pass:false,last:'07:55'},{name:'费用合理性',table:'ads_expense',layer:'ADS',sev:'HIGH',pass:false,last:'07:32'},{name:'患者ID重复',table:'dwd_patient_fact',layer:'DWD',sev:'HIGH',pass:false,last:'06:18'},{name:'科室编码规范',table:'dwd_dept_dim',layer:'DWD',sev:'MEDIUM',pass:true,last:'08:00'},{name:'时间字段非空',table:'ods_order',layer:'ODS',sev:'HIGH',pass:true,last:'07:00'},{name:'年龄范围校验',table:'dwd_patient_fact',layer:'DWD',sev:'MEDIUM',pass:true,last:'07:10'}];
+const DQ_ISSUES=[
+  {time:'2026-05-13 08:42',code:'DRG-DOSE-001',table:'ads_drug_usage',sev:'CRITICAL',layer:'ADS',desc:'紫杉醇给药剂量超出体重合理范围（>300mg/m²），涉及12例患者'},
+  {time:'2026-05-13 08:15',code:'PKU-DUP-001',table:'dwd_patient_fact',sev:'HIGH',layer:'DWD',desc:'发现重复主键 MPI_20260513_007，影响数据聚合准确性'},
+  {time:'2026-05-13 07:55',code:'ODS-NULL-003',table:'ods_inpatient_order',sev:'HIGH',layer:'ODS',desc:'就诊时间字段空值率 14.2%，超过阈值 5%，共 142 条'},
+  {time:'2026-05-13 07:32',code:'EXP-RANGE-002',table:'ads_expense_summary',sev:'MEDIUM',layer:'ADS',desc:'肺癌化疗费用异常：单次 ¥128,400，超出合理区间上限'},
+  {time:'2026-05-13 06:18',code:'MPI-DUP-001',table:'dwd_patient_fact',sev:'HIGH',layer:'DWD',desc:'患者 ID 在 HIS/EMR 双系统存在未合并重复记录，共 5 对'},
+  {time:'2026-05-12 22:14',code:'DQ-REF-004',table:'dwd_diag_fact',sev:'MEDIUM',layer:'DWD',desc:'诊断编码 Z85.3 未在 ICD-10 参考表中匹配，共 3 条'},
+  {time:'2026-05-12 18:05',code:'ODS-FMT-002',table:'ods_lab_result',sev:'LOW',layer:'ODS',desc:'日期格式不规范，含有 "2026/05/12" 格式记录 47 条'},
+];
+const DRUG_TREND=(()=>['2025-10','2025-11','2025-12','2026-01','2026-02','2026-03','2026-04'].map((m,i)=>({month:m,ddi:parseFloat((1.2+i*.08+(Math.random()-.5)*.1).toFixed(2)),cost:Math.round(280000+i*15000+Math.random()*20000)})))();
+const DRUG_ALERTS_DATA=[
+  {time:'2026-05-13 08:42',rule:'DRG-DOSE-001 抗肿瘤药物超量检测',table:'ads_drug_usage',sev:'CRITICAL',n:12},
+  {time:'2026-05-13 07:28',rule:'DRG-INT-003 药物相互作用检测',table:'ads_drug_interaction',sev:'CRITICAL',n:3},
+  {time:'2026-05-13 06:15',rule:'DRG-ADR-002 严重不良反应预警',table:'ods_clinical_event',sev:'HIGH',n:7},
+  {time:'2026-05-12 22:14',rule:'DRG-FREQ-001 用药频率异常',table:'dwd_drug_order',sev:'HIGH',n:18},
+  {time:'2026-05-12 18:05',rule:'DRG-COST-004 费用超出基准',table:'ads_expense_summary',sev:'MEDIUM',n:31},
+];
+const DRUG_REPORT_DATA=[
+  {regimen:'TC方案',tumor:'乳腺癌',patients:45,courses:178,drug:'紫杉醇+卡铂',cost:286450,completion:89,adr:12.4,severe:2},
+  {regimen:'FOLFOX',tumor:'结直肠癌',patients:38,courses:156,drug:'奥沙利铂+氟尿嘧啶',cost:198760,completion:92,adr:8.9,severe:1},
+  {regimen:'EP方案',tumor:'肺癌',patients:52,courses:201,drug:'依托泊苷+顺铂',cost:312400,completion:85,adr:15.2,severe:4},
+  {regimen:'CHOP方案',tumor:'淋巴瘤',patients:28,courses:118,drug:'环磷酰胺+多柔比星',cost:241800,completion:91,adr:18.7,severe:3},
+  {regimen:'GEMOX',tumor:'肝癌',patients:19,courses:74,drug:'吉西他滨+奥沙利铂',cost:167300,completion:78,adr:22.1,severe:5},
+];
+
+function DashboardPage(){
+  const trendOpt={tooltip:{trigger:'axis',formatter:(p)=>`${p[0].name}<br/>DQ 评分：<b>${p[0].value}</b>`},grid:{left:44,right:16,top:16,bottom:28},xAxis:{type:'category',data:TREND.map(t=>t.date),boundaryGap:false,axisLine:{lineStyle:{color:'#e2e8f0'}},axisLabel:{color:'#94a3b8',fontSize:11,interval:4},axisTick:{show:false}},yAxis:{type:'value',min:72,max:100,splitLine:{lineStyle:{color:'#f1f5f9',type:'dashed'}},axisLabel:{color:'#94a3b8',fontSize:11}},series:[{type:'line',data:TREND.map(t=>t.score),smooth:true,symbol:'none',lineStyle:{color:'#2563eb',width:2},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(37,99,235,.10)'},{offset:1,color:'rgba(37,99,235,0)'}]}},markLine:{silent:true,symbol:'none',lineStyle:{color:'#dc2626',type:'dashed',width:1},data:[{yAxis:75,label:{formatter:'告警线 75',color:'#dc2626',fontSize:11}}]}}]};
+  return(
+    <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      <div className="g4">
+        <KC title="DQ 综合评分" value={87.3} precision={1} status="normal" sub="较昨日 +0.4 分" icon="ri-shield-star-line"/>
+        <KC title="CRITICAL 失败" value={2} status="error" sub="需立即处理" icon="ri-error-warning-line"/>
+        <KC title="MPI 去重患者" value="12,847" status="neutral" sub="较上月 +203 人" icon="ri-group-line"/>
+        <KC title="管道异常" value={1} unit="个" status="warning" sub="DWS 汇总层延迟" icon="ri-flow-chart"/>
+      </div>
+      <div className="g2">
+        <Crd title="近 30 日 DQ 评分趋势"><EC option={trendOpt} height={260}/></Crd>
+        <Crd title="数据管道状态">
+          <table className="tbl"><thead><tr><th>层级</th><th>最后更新</th><th>状态</th></tr></thead>
+          <tbody>{PIPELINE.map(p=>(
+            <tr key={p.layer}>
+              <td style={{fontWeight:500}}>{p.layer}</td>
+              <td style={{color:'var(--tx2)',fontSize:12}}>今日 {p.updated}</td>
+              <td>{p.status==='ok'?<span className="tag tag-ok"><i className="ri-check-line"/> 正常</span>:<span className="tag tag-err"><i className="ri-error-warning-line"/> 异常</span>}</td>
+            </tr>
+          ))}</tbody></table>
+        </Crd>
+      </div>
+      <Crd title="最近告警" extra={<span style={{fontSize:12,color:'var(--accent)',cursor:'pointer'}}>查看全部 <i className="ri-arrow-right-line"/></span>}>
+        <table className="tbl"><thead><tr><th>时间</th><th>规则</th><th>目标表</th><th>级别</th><th>问题数</th></tr></thead>
+        <tbody>{ALERTS.map((a,i)=>(
+          <tr key={i}>
+            <td style={{color:'var(--tx2)',fontSize:12,whiteSpace:'nowrap'}}>今日 {a.time}</td>
+            <td style={{fontWeight:500}}>{a.rule}</td>
+            <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{a.table}</td>
+            <td><ST sev={a.sev}/></td>
+            <td style={{fontWeight:600}}>{a.n}</td>
+          </tr>
+        ))}</tbody></table>
+      </Crd>
+    </div>
+  );
+}
+
+function DQOverview(){
+  const gaugeOpt={series:[{type:'gauge',startAngle:210,endAngle:-30,min:0,max:100,radius:'88%',pointer:{width:4,length:'58%',itemStyle:{color:'#2563eb'}},axisLine:{lineStyle:{width:16,color:[[.75,'#fca5a5'],[.9,'#fcd34d'],[1,'#6ee7b7']]}},axisTick:{show:false},splitLine:{show:false},axisLabel:{show:false},detail:{formatter:'{value}',fontSize:30,fontWeight:700,offsetCenter:[0,'28%'],color:'#0f172a'},title:{offsetCenter:[0,'52%'],fontSize:12,color:'#64748b'},data:[{value:87.3,name:'DQ 综合评分'}]}]};
+  const barOpt={tooltip:{trigger:'axis'},grid:{left:52,right:64,top:8,bottom:8},xAxis:{type:'value',max:100,axisLabel:{show:false},splitLine:{lineStyle:{color:'#f1f5f9',type:'dashed'}}},yAxis:{type:'category',data:DQ_LAYERS.map(l=>l.layer),axisLine:{show:false},axisTick:{show:false},axisLabel:{color:'#64748b',fontSize:12}},series:[{type:'bar',barWidth:18,data:DQ_LAYERS.map(l=>({value:l.score,itemStyle:{color:l.score>=90?'#059669':l.score>=75?'#d97706':'#dc2626',borderRadius:[0,4,4,0]}})),label:{show:true,position:'right',formatter:'{c}',color:'#64748b',fontSize:12}}]};
+  const tc=DQ_LAYERS.reduce((s,l)=>s+l.critical,0),th=DQ_LAYERS.reduce((s,l)=>s+l.high,0);
+  return(
+    <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      <div className="g4">
+        <KC title="综合评分" value={87.3} precision={1} status="normal" sub="较上周 +1.2"/>
+        <KC title="CRITICAL 失败" value={tc} status="error" sub="需立即处理"/>
+        <KC title="HIGH 失败" value={th} status="warning" sub="本日累计"/>
+        <KC title="数据层数" value={4} unit="层" status="neutral" sub="全部在线"/>
+      </div>
+      <div className="g2">
+        <Crd title="综合评分仪表盘"><EC option={gaugeOpt} height={260}/></Crd>
+        <Crd title="各层评分"><EC option={barOpt} height={260}/></Crd>
+      </div>
+    </div>
+  );
+}
+
+function DQRules(){
+  return(
+    <Crd title="规则列表" extra={<span style={{fontSize:12,color:'var(--tx2)'}}>{DQ_RULES.length} 条</span>}>
+      <table className="tbl"><thead><tr><th>规则名称</th><th>目标表</th><th>数据层</th><th>严重级别</th><th>最新状态</th><th>最后执行</th></tr></thead>
+      <tbody>{DQ_RULES.map((r,i)=>(
+        <tr key={i}>
+          <td style={{fontWeight:500}}>{r.name}</td>
+          <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{r.table}</td>
+          <td><span className="tag tag-gray">{r.layer}</span></td>
+          <td><ST sev={r.sev}/></td>
+          <td>{r.pass?<span className="tag tag-ok"><i className="ri-check-line"/> 通过</span>:<span className="tag tag-err"><i className="ri-close-line"/> 失败</span>}</td>
+          <td style={{color:'var(--tx2)',fontSize:12}}>今日 {r.last}</td>
+        </tr>
+      ))}</tbody></table>
+    </Crd>
+  );
+}
+
+function DQIssues(){
+  const [sev,setSev]=React.useState('');const [layer,setLayer]=React.useState('');
+  const rows=DQ_ISSUES.filter(r=>(sev?r.sev===sev:true)&&(layer?r.layer===layer:true));
+  return(
+    <>
+      <div className="filter-row">
+        <select className="sel" value={sev} onChange={e=>setSev(e.target.value)}>
+          <option value="">全部级别</option>
+          {['CRITICAL','HIGH','MEDIUM','LOW'].map(s=><option key={s}>{s}</option>)}
+        </select>
+        <select className="sel" value={layer} onChange={e=>setLayer(e.target.value)}>
+          <option value="">全部数据层</option>
+          {['ODS','DWD','DWS','ADS'].map(l=><option key={l}>{l}</option>)}
+        </select>
+        <button className="btn btn-default btn-sm"><i className="ri-download-line"/> 导出 CSV</button>
+        <span style={{marginLeft:'auto',fontSize:12,color:'var(--tx2)'}}>{rows.length} 条结果</span>
+      </div>
+      <Crd title={null}>
+        <table className="tbl"><thead><tr><th>检查时间</th><th>规则编码</th><th>目标表</th><th>级别</th><th>数据层</th><th>问题描述</th></tr></thead>
+        <tbody>{rows.map((r,i)=>(
+          <tr key={i}>
+            <td style={{fontSize:12,color:'var(--tx2)',whiteSpace:'nowrap'}}>{r.time}</td>
+            <td style={{fontFamily:'monospace',fontSize:12}}>{r.code}</td>
+            <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{r.table}</td>
+            <td><ST sev={r.sev}/></td>
+            <td><span className="tag tag-gray">{r.layer}</span></td>
+            <td style={{fontSize:12,color:'var(--tx2)',maxWidth:320}}>{r.desc}</td>
+          </tr>
+        ))}</tbody></table>
+      </Crd>
+    </>
+  );
+}
+
+function DQPage(){
+  const [tab,setTab]=React.useState('overview');
+  return(
+    <>
+      <div className="tabs">
+        {[['overview','DQ 总览'],['rules','规则列表'],['issues','问题明细']].map(([k,l])=>(
+          <div key={k} className={`tab${tab===k?' act':''}`} onClick={()=>setTab(k)}>{l}</div>
+        ))}
+      </div>
+      {tab==='overview'&&<DQOverview/>}{tab==='rules'&&<DQRules/>}{tab==='issues'&&<DQIssues/>}
+    </>
+  );
+}
+
+function DrugAlerts(){
+  const [sev,setSev]=React.useState('');
+  const rows=DRUG_ALERTS_DATA.filter(r=>sev?r.sev===sev:true);
+  return(
+    <>
+      <div className="filter-row">
+        <select className="sel" value={sev} onChange={e=>setSev(e.target.value)}>
+          <option value="">全部级别</option>
+          {['CRITICAL','HIGH','MEDIUM'].map(s=><option key={s}>{s}</option>)}
+        </select>
+      </div>
+      <Crd title={null}>
+        <table className="tbl"><thead><tr><th>检测时间</th><th>规则</th><th>目标表</th><th>级别</th><th>问题数</th></tr></thead>
+        <tbody>{rows.map((a,i)=>(
+          <tr key={i}>
+            <td style={{fontSize:12,color:'var(--tx2)',whiteSpace:'nowrap'}}>{a.time}</td>
+            <td style={{fontWeight:500}}>{a.rule}</td>
+            <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{a.table}</td>
+            <td><ST sev={a.sev}/></td>
+            <td style={{fontWeight:600}}>{a.n}</td>
+          </tr>
+        ))}</tbody></table>
+      </Crd>
+    </>
+  );
+}
+
+function DrugReport(){
+  return(
+    <Crd title="月度上报数据（2026年04月）" extra={<button className="btn btn-default btn-sm"><i className="ri-download-line"/> 导出 CSV</button>}>
+      <table className="tbl"><thead><tr><th>化疗方案</th><th>肿瘤类型</th><th>患者数</th><th>疗程数</th><th>主要药品</th><th>药品费用</th><th>完成率</th><th>ADR 率</th><th>严重 ADR</th></tr></thead>
+      <tbody>{DRUG_REPORT_DATA.map((r,i)=>(
+        <tr key={i}>
+          <td style={{fontWeight:500}}>{r.regimen}</td>
+          <td>{r.tumor}</td>
+          <td>{r.patients}</td>
+          <td>{r.courses}</td>
+          <td style={{fontSize:12,color:'var(--tx2)'}}>{r.drug}</td>
+          <td>¥{r.cost.toLocaleString()}</td>
+          <td><span style={{color:r.completion>=90?'var(--ok)':r.completion>=80?'var(--warn)':'var(--err)',fontWeight:600}}>{r.completion}%</span></td>
+          <td><span style={{color:r.adr>15?'var(--err)':r.adr>10?'var(--warn)':'var(--tx1)'}}>{r.adr}%</span></td>
+          <td style={{fontWeight:r.severe>3?600:400,color:r.severe>3?'var(--err)':'var(--tx1)'}}>{r.severe}</td>
+        </tr>
+      ))}</tbody></table>
+    </Crd>
+  );
+}
+
+function DrugPage(){
+  const [tab,setTab]=React.useState('trend');
+  const trendOpt={tooltip:{trigger:'axis'},legend:{data:['DDI 强度','药品费用(万)'],bottom:0,textStyle:{fontSize:12,color:'#64748b'}},grid:{left:44,right:44,top:16,bottom:40},xAxis:{type:'category',data:DRUG_TREND.map(d=>d.month),axisLabel:{fontSize:11,color:'#94a3b8'},axisTick:{show:false},axisLine:{lineStyle:{color:'#e2e8f0'}}},yAxis:[{type:'value',name:'DDI',min:0,max:2.5,splitLine:{lineStyle:{color:'#f1f5f9',type:'dashed'}},axisLabel:{color:'#94a3b8',fontSize:11},nameTextStyle:{color:'#94a3b8',fontSize:11}},{type:'value',name:'万元',axisLabel:{color:'#94a3b8',fontSize:11},splitLine:{show:false},nameTextStyle:{color:'#94a3b8',fontSize:11}}],series:[{name:'DDI 强度',type:'line',data:DRUG_TREND.map(d=>d.ddi),smooth:true,symbol:'circle',symbolSize:5,lineStyle:{color:'#2563eb',width:2},itemStyle:{color:'#2563eb'},markLine:{silent:true,symbol:'none',lineStyle:{color:'#d97706',type:'dashed'},data:[{yAxis:1.5,label:{formatter:'限值 1.5',color:'#d97706',fontSize:11}}]}},{name:'药品费用(万)',type:'bar',yAxisIndex:1,data:DRUG_TREND.map(d=>(d.cost/10000).toFixed(1)),barWidth:20,itemStyle:{color:'rgba(37,99,235,.12)',borderRadius:[3,3,0,0]}}]};
+  return(
+    <>
+      <div className="tabs">
+        {[['trend','用量趋势'],['alerts','异常预警'],['report','月度上报']].map(([k,l])=>(
+          <div key={k} className={`tab${tab===k?' act':''}`} onClick={()=>setTab(k)}>{l}</div>
+        ))}
+      </div>
+      {tab==='trend'&&(
+        <div style={{display:'flex',flexDirection:'column',gap:16}}>
+          <div className="g4">
+            <KC title="本月 DDI 强度" value={1.68} precision={2} status="warning" sub="超限值 1.5"/>
+            <KC title="抗肿瘤药品费用" value="32.4" unit="万元" status="neutral" sub="较上月 +8.3%"/>
+            <KC title="预警品种" value={5} unit="种" status="error" sub="需核查处理"/>
+            <KC title="月度上报进度" value="4/5" status="neutral" sub="1 个科室待提交"/>
+          </div>
+          <Crd title="抗肿瘤药物使用强度趋势（近 7 个月）"><EC option={trendOpt} height={300}/></Crd>
+        </div>
+      )}
+      {tab==='alerts'&&<DrugAlerts/>}
+      {tab==='report'&&<DrugReport/>}
+    </>
+  );
+}
+
+window.__p1={DashboardPage,DQPage,DrugPage};
+</script>
+
+<!-- ── MPI + 费用 + 住院 ──────────────────────────── -->
+<script type="text/babel">
+const {KpiCard:KC2,EChart:EC2,Card:Crd2,SevTag:ST2}=window.__sc;
+
+const MPI_DUPS=[
+  {id:'DUP-001',score:.96,basis:'姓名+身份证+生日',a:{name:'张伟',id:'310108198503150021',birth:'1985-03-15',phone:'138****8801',sys:'HIS'},b:{name:'张伟',id:'310108198503150021',birth:'1985-03-15',phone:'139****2234',sys:'EMR'}},
+  {id:'DUP-002',score:.91,basis:'姓名+生日+电话',a:{name:'李秀英',id:'310115197612080045',birth:'1976-12-08',phone:'135****3390',sys:'LIS'},b:{name:'李秀英',id:'310115197612080045',birth:'1976-12-08',phone:'135****3390',sys:'PACS'}},
+  {id:'DUP-003',score:.87,basis:'姓名+身份证',a:{name:'王芳',id:'440301199001220032',birth:'1990-01-22',phone:'180****1122',sys:'HIS'},b:{name:'王方',id:'440301199001220032',birth:'1990-01-22',phone:'181****3344',sys:'EMR'}},
+  {id:'DUP-004',score:.83,basis:'姓名+生日',a:{name:'陈明',id:'370204198808140078',birth:'1988-08-14',phone:'177****5566',sys:'HIS'},b:{name:'陈明',id:'370204198808140078',birth:'1988-08-14',phone:'178****7788',sys:'急诊系统'}},
+  {id:'DUP-005',score:.94,basis:'身份证+姓名+电话',a:{name:'刘洋',id:'110105200201030056',birth:'2002-01-03',phone:'132****9900',sys:'HIS'},b:{name:'刘洋',id:'110105200201030056',birth:'2002-01-03',phone:'132****9900',sys:'LIS'}},
+];
+const MPI_SRC=[{sys:'HIS',cnt:7842},{sys:'LIS',cnt:3124},{sys:'PACS',cnt:2891},{sys:'EMR',cnt:2654},{sys:'急诊系统',cnt:1723}];
+const EXP_TUMORS=[
+  {type:'肺癌',cnt:234,avg:28450,drug:16870,exam:5230,surgery:3120,other:3230,ratio:59.3},
+  {type:'乳腺癌',cnt:189,avg:22380,drug:12450,exam:4230,surgery:3890,other:1810,ratio:55.6},
+  {type:'结直肠癌',cnt:142,avg:31200,drug:19340,exam:5820,surgery:4230,other:1810,ratio:62.0},
+  {type:'胃癌',cnt:98,avg:25780,drug:15230,exam:4780,surgery:3290,other:2480,ratio:59.1},
+  {type:'淋巴瘤',cnt:87,avg:41200,drug:27840,exam:6320,surgery:2340,other:4700,ratio:67.6},
+  {type:'肝癌',cnt:65,avg:35420,drug:21340,exam:5870,surgery:6210,other:2000,ratio:60.2},
+];
+const INP_DEPTS=[
+  {dept:'肿瘤内科',days:14.5,surgery:78,comp:2.8,readmit:6.1,mortality:2.1},
+  {dept:'普外科',days:12.3,surgery:124,comp:4.2,readmit:4.8,mortality:1.2},
+  {dept:'胸外科',days:13.8,surgery:89,comp:3.7,readmit:5.2,mortality:1.8},
+  {dept:'乳腺外科',days:8.4,surgery:67,comp:1.9,readmit:3.4,mortality:0.8},
+  {dept:'血液科',days:18.2,surgery:14,comp:5.1,readmit:8.3,mortality:3.4},
+];
+const INP_TREND=(()=>{const o=[],b=new Date('2026-04-20');for(let i=0;i<14;i++){const d=new Date(b);d.setDate(d.getDate()+i*2);o.push({date:`${d.getMonth()+1}/${d.getDate()}`,days:(11+(Math.random()-.5)*2).toFixed(1),surgery:Math.round(20+Math.random()*15)});}return o;})();
+
+function MPISummary(){
+  const pieOpt={tooltip:{trigger:'item',formatter:'{b}: {c} ({d}%)'},legend:{bottom:0,textStyle:{fontSize:12}},series:[{type:'pie',radius:['40%','68%'],label:{formatter:'{b}\n{d}%',fontSize:12},data:[{value:8234,name:'精确匹配',itemStyle:{color:'#059669'}},{value:3891,name:'模糊匹配',itemStyle:{color:'#d97706'}},{value:722,name:'未匹配',itemStyle:{color:'#dc2626'}}]}]};
+  const gaugeOpt={series:[{type:'gauge',startAngle:210,endAngle:-30,min:0,max:100,radius:'88%',pointer:{width:4,length:'58%',itemStyle:{color:'#2563eb'}},axisLine:{lineStyle:{width:16,color:[[.5,'#fca5a5'],[.8,'#fcd34d'],[1,'#6ee7b7']]}},axisTick:{show:false},splitLine:{show:false},axisLabel:{show:false},detail:{formatter:'{value}%',fontSize:26,fontWeight:700,offsetCenter:[0,'28%'],color:'#0f172a'},title:{offsetCenter:[0,'52%'],fontSize:12,color:'#64748b'},data:[{value:29.5,name:'去重率'}]}]};
+  return(
+    <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      <div className="g3">
+        <KC2 title="来源患者数" value="18,234" status="neutral" sub="多系统累计"/>
+        <KC2 title="MPI 去重患者数" value="12,847" status="neutral" sub="唯一患者主索引"/>
+        <KC2 title="去重率" value={29.5} precision={1} unit="%" status="warning" sub="正常阈值 < 25%"/>
+      </div>
+      <div className="g2e">
+        <Crd2 title="匹配方式分布"><EC2 option={pieOpt} height={260}/></Crd2>
+        <Crd2 title="去重率仪表盘"><EC2 option={gaugeOpt} height={260}/></Crd2>
+      </div>
+    </div>
+  );
+}
+
+function MPIDuplicates(){
+  const [expanded,setExpanded]=React.useState(new Set());
+  const [dismissed,setDismissed]=React.useState(new Set());
+  const toggle=id=>setExpanded(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n;});
+  const dismiss=id=>setDismissed(p=>new Set([...p,id]));
+  const rows=MPI_DUPS.filter(d=>!dismissed.has(d.id));
+  const fields=[{k:'name',l:'姓名'},{k:'id',l:'身份证'},{k:'birth',l:'出生日期'},{k:'phone',l:'电话'},{k:'sys',l:'来源系统'}];
+  return(
+    <Crd2 title="疑似重复患者" extra={<span style={{fontSize:12,color:'var(--tx2)'}}>{rows.length} 对待核查</span>}>
+      <table className="tbl">
+        <thead><tr><th style={{width:32}}></th><th>匹配度</th><th>匹配依据</th><th>患者 A</th><th>患者 B</th><th>操作</th></tr></thead>
+        <tbody>
+          {rows.map(d=>(
+            <React.Fragment key={d.id}>
+              <tr>
+                <td><button className="btn btn-default btn-sm" style={{padding:'2px 6px',border:'none',background:'none',color:'var(--tx3)'}} onClick={()=>toggle(d.id)}><i className={expanded.has(d.id)?'ri-arrow-down-s-line':'ri-arrow-right-s-line'} style={{fontSize:16}}/></button></td>
+                <td><span className={`tag ${d.score>=.9?'tag-err':'tag-warn'}`}>{(d.score*100).toFixed(0)}%</span></td>
+                <td style={{fontSize:12,color:'var(--tx2)'}}>{d.basis}</td>
+                <td style={{fontWeight:500}}>{d.a.name}</td>
+                <td style={{fontWeight:500}}>{d.b.name}</td>
+                <td>
+                  <div style={{display:'flex',gap:6}}>
+                    <button className="btn btn-primary btn-sm" onClick={()=>dismiss(d.id)}><i className="ri-check-line"/> 确认合并</button>
+                    <button className="btn btn-default btn-sm" onClick={()=>dismiss(d.id)}><i className="ri-close-line"/> 标记不同</button>
+                  </div>
+                </td>
+              </tr>
+              {expanded.has(d.id)&&(
+                <tr><td colSpan={6} style={{padding:0}}>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:24,padding:'12px 16px 12px 48px',background:'#f8fafc',borderTop:'1px solid var(--card-b)'}}>
+                    {[{label:'患者 A',p:d.a},{label:'患者 B',p:d.b}].map(({label,p})=>(
+                      <div key={label}>
+                        <div style={{fontWeight:600,fontSize:12,color:'var(--tx2)',marginBottom:8}}>{label}</div>
+                        <table style={{width:'100%',fontSize:13}}><tbody>
+                          {fields.map(f=>(
+                            <tr key={f.k}>
+                              <td style={{padding:'3px 0',color:'var(--tx3)',width:72}}>{f.l}</td>
+                              <td style={{padding:'3px 0',fontWeight:d.a[f.k]!==d.b[f.k]?600:400,color:d.a[f.k]!==d.b[f.k]?'var(--warn)':'var(--tx1)'}}>{p[f.k]}</td>
+                            </tr>
+                          ))}
+                        </tbody></table>
+                      </div>
+                    ))}
+                  </div>
+                </td></tr>
+              )}
+            </React.Fragment>
+          ))}
+        </tbody>
+      </table>
+    </Crd2>
+  );
+}
+
+function MPISources(){
+  const pieOpt={tooltip:{trigger:'item',formatter:'{b}: {c} ({d}%)'},legend:{bottom:0,textStyle:{fontSize:12}},series:[{type:'pie',radius:['35%','65%'],data:MPI_SRC.map(s=>({name:s.sys,value:s.cnt})),label:{formatter:'{b}\n{d}%',fontSize:12}}]};
+  return(
+    <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      <Crd2 title="来源系统患者分布"><EC2 option={pieOpt} height={280}/></Crd2>
+      <Crd2 title="来源系统汇总">
+        <table className="tbl"><thead><tr><th>来源系统</th><th>患者数</th><th>占比</th></tr></thead>
+        <tbody>{MPI_SRC.map(s=>{const total=MPI_SRC.reduce((a,b)=>a+b.cnt,0);const pct=(s.cnt/total*100).toFixed(1);return(
+          <tr key={s.sys}>
+            <td style={{fontWeight:500}}>{s.sys}</td>
+            <td>{s.cnt.toLocaleString()}</td>
+            <td>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <div style={{flex:1,height:6,background:'#e5e7eb',borderRadius:3,overflow:'hidden'}}>
+                  <div style={{width:`${pct}%`,height:'100%',background:'var(--accent)',borderRadius:3}}/>
+                </div>
+                <span style={{fontSize:12,color:'var(--tx2)',width:36}}>{pct}%</span>
+              </div>
+            </td>
+          </tr>
+        );})}</tbody></table>
+      </Crd2>
+    </div>
+  );
+}
+
+function MPIPage(){
+  const [tab,setTab]=React.useState('summary');
+  return(
+    <>
+      <div className="tabs">
+        {[['summary','MPI 总览'],['duplicates','疑似重复患者'],['sources','来源映射']].map(([k,l])=>(
+          <div key={k} className={`tab${tab===k?' act':''}`} onClick={()=>setTab(k)}>{l}</div>
+        ))}
+      </div>
+      {tab==='summary'&&<MPISummary/>}{tab==='duplicates'&&<MPIDuplicates/>}{tab==='sources'&&<MPISources/>}
+    </>
+  );
+}
+
+function ExpensePage(){
+  const barOpt={tooltip:{trigger:'axis',formatter:(p)=>`${p[0].name}<br/>人均费用：¥${Number(p[0].value).toLocaleString()}`},grid:{left:72,right:72,top:8,bottom:8},xAxis:{type:'value',axisLabel:{show:false},splitLine:{lineStyle:{color:'#f1f5f9',type:'dashed'}}},yAxis:{type:'category',data:[...EXP_TUMORS].reverse().map(t=>t.type),axisLine:{show:false},axisTick:{show:false},axisLabel:{color:'#64748b',fontSize:12}},series:[{type:'bar',barWidth:18,data:[...EXP_TUMORS].reverse().map(t=>({value:t.avg,itemStyle:{color:'#2563eb',borderRadius:[0,4,4,0]}})),label:{show:true,position:'right',formatter:(p)=>`¥${(p.value/10000).toFixed(1)}万`,color:'#64748b',fontSize:12}}]};
+  const pieOpt={tooltip:{trigger:'item',formatter:'{b}: ¥{c} ({d}%)'},legend:{bottom:0,textStyle:{fontSize:12}},series:[{type:'pie',radius:['42%','68%'],data:[{value:EXP_TUMORS[0].drug,name:'药品费',itemStyle:{color:'#2563eb'}},{value:EXP_TUMORS[0].exam,name:'检查费',itemStyle:{color:'#06b6d4'}},{value:EXP_TUMORS[0].surgery,name:'手术费',itemStyle:{color:'#8b5cf6'}},{value:EXP_TUMORS[0].other,name:'其他',itemStyle:{color:'#94a3b8'}}],label:{formatter:'{b}\n{d}%',fontSize:12}}]};
+  return(
+    <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      <div className="g4">
+        <KC2 title="医疗总费用" value="423.5" unit="万元" status="neutral" sub="本季度累计"/>
+        <KC2 title="就诊患者数" value={847} status="neutral" sub="肿瘤相关"/>
+        <KC2 title="人均费用" value="4,999" unit="元" status="neutral" sub="较上季度 +3.2%"/>
+        <KC2 title="药占比" value={58.3} precision={1} unit="%" status="warning" sub="建议阈值 ≤ 60%"/>
+      </div>
+      <div className="g2">
+        <Crd2 title="各肿瘤类型人均费用"><EC2 option={barOpt} height={280}/></Crd2>
+        <Crd2 title="肺癌费用构成"><EC2 option={pieOpt} height={280}/></Crd2>
+      </div>
+      <Crd2 title="各肿瘤类型费用明细">
+        <table className="tbl"><thead><tr><th>肿瘤类型</th><th>患者数</th><th>人均费用</th><th>药品费</th><th>检查费</th><th>手术费</th><th>药占比</th></tr></thead>
+        <tbody>{EXP_TUMORS.map((t,i)=>(
+          <tr key={i}>
+            <td style={{fontWeight:500}}>{t.type}</td>
+            <td>{t.cnt}</td>
+            <td>¥{t.avg.toLocaleString()}</td>
+            <td>¥{t.drug.toLocaleString()}</td>
+            <td>¥{t.exam.toLocaleString()}</td>
+            <td>¥{t.surgery.toLocaleString()}</td>
+            <td><span style={{color:t.ratio>65?'var(--err)':t.ratio>60?'var(--warn)':'var(--ok)',fontWeight:600}}>{t.ratio}%</span></td>
+          </tr>
+        ))}</tbody></table>
+      </Crd2>
+    </div>
+  );
+}
+
+function InpatientPage(){
+  const trendOpt={tooltip:{trigger:'axis'},legend:{data:['平均住院天数','手术量'],bottom:0,textStyle:{fontSize:12}},grid:{left:44,right:44,top:16,bottom:40},xAxis:{type:'category',data:INP_TREND.map(t=>t.date),axisLabel:{color:'#94a3b8',fontSize:11},axisTick:{show:false},axisLine:{lineStyle:{color:'#e2e8f0'}}},yAxis:[{type:'value',name:'天',min:8,axisLabel:{color:'#94a3b8',fontSize:11},splitLine:{lineStyle:{color:'#f1f5f9',type:'dashed'}},nameTextStyle:{color:'#94a3b8',fontSize:11}},{type:'value',name:'台',axisLabel:{color:'#94a3b8',fontSize:11},splitLine:{show:false},nameTextStyle:{color:'#94a3b8',fontSize:11}}],series:[{name:'平均住院天数',type:'line',data:INP_TREND.map(t=>t.days),smooth:true,lineStyle:{color:'#2563eb',width:2},symbol:'none',itemStyle:{color:'#2563eb'}},{name:'手术量',type:'bar',yAxisIndex:1,data:INP_TREND.map(t=>t.surgery),barWidth:14,itemStyle:{color:'rgba(37,99,235,.12)',borderRadius:[3,3,0,0]}}]};
+  const deptBarOpt={tooltip:{trigger:'axis'},grid:{left:64,right:64,top:8,bottom:8},xAxis:{type:'value',axisLabel:{show:false},splitLine:{lineStyle:{color:'#f1f5f9',type:'dashed'}}},yAxis:{type:'category',data:[...INP_DEPTS].reverse().map(d=>d.dept),axisLine:{show:false},axisTick:{show:false},axisLabel:{color:'#64748b',fontSize:12}},series:[{type:'bar',barWidth:16,data:[...INP_DEPTS].reverse().map(d=>({value:d.days,itemStyle:{color:d.days>15?'#dc2626':d.days>12?'#d97706':'#2563eb',borderRadius:[0,4,4,0]}})),label:{show:true,position:'right',formatter:'{c}天',color:'#64748b',fontSize:12}}]};
+  return(
+    <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      <div className="g4">
+        <KC2 title="平均住院天数" value={11.2} precision={1} unit="天" status="normal" sub="目标值 ≤ 14 天"/>
+        <KC2 title="手术量" value={342} unit="台" status="neutral" sub="本月累计"/>
+        <KC2 title="并发症率" value={3.1} precision={1} unit="%" status="normal" sub="阈值 5%"/>
+        <KC2 title="危急值处置及时率" value={94.7} precision={1} unit="%" status="normal" sub="目标 ≥ 90%"/>
+      </div>
+      <div className="g4">
+        <KC2 title="30 天再入院率" value={5.2} precision={1} unit="%" status="warning" sub="阈值 8%"/>
+        <KC2 title="长期住院率" value={7.8} precision={1} unit="%" status="warning" sub="阈值 10%"/>
+        <KC2 title="肿瘤住院患者" value={312} unit="人" status="neutral" sub="本月在院"/>
+        <KC2 title="肿瘤平均住院天数" value={14.5} precision={1} unit="天" status="warning" sub="较普通高 3.3 天"/>
+      </div>
+      <div className="g2e">
+        <Crd2 title="近 28 日趋势"><EC2 option={trendOpt} height={240}/></Crd2>
+        <Crd2 title="科室平均住院天数"><EC2 option={deptBarOpt} height={240}/></Crd2>
+      </div>
+      <Crd2 title="科室质量明细">
+        <table className="tbl"><thead><tr><th>科室</th><th>平均住院天数</th><th>手术量</th><th>并发症率</th><th>30天再入院率</th><th>死亡率 (‰)</th></tr></thead>
+        <tbody>{INP_DEPTS.map((d,i)=>(
+          <tr key={i}>
+            <td style={{fontWeight:500}}>{d.dept}</td>
+            <td><span style={{color:d.days>15?'var(--err)':d.days>12?'var(--warn)':'var(--ok)',fontWeight:600}}>{d.days} 天</span></td>
+            <td>{d.surgery} 台</td>
+            <td><span style={{color:d.comp>4?'var(--err)':d.comp>3?'var(--warn)':'var(--tx1)'}}>{d.comp}%</span></td>
+            <td><span style={{color:d.readmit>7?'var(--err)':d.readmit>5?'var(--warn)':'var(--tx1)'}}>{d.readmit}%</span></td>
+            <td>{d.mortality}</td>
+          </tr>
+        ))}</tbody></table>
+      </Crd2>
+    </div>
+  );
+}
+
+window.__p2={MPIPage,ExpensePage,InpatientPage};
+</script>
+
+<!-- ── AI 指标开发 + 语义层 ────────────────────────── -->
+<script type="text/babel">
+const {KpiCard:KC3,EChart:EC3,Card:Crd3}=window.__sc;
+
+const SEM_METRICS=[
+  {name:'ddi_intensity',display:'抗肿瘤药物使用强度',dataset:'drug_usage_ds',formula:'SUM(dose_mg)/patient_cnt',status:'published',owner:'drug_team'},
+  {name:'drug_cost_ratio',display:'药占比',dataset:'expense_ds',formula:'drug_expense/total_expense',status:'published',owner:'finance_team'},
+  {name:'avg_inpatient_days',display:'平均住院天数',dataset:'inpatient_ds',formula:'AVG(inpatient_days)',status:'published',owner:'quality_team'},
+  {name:'complication_rate',display:'并发症率',dataset:'inpatient_ds',formula:'complication_cnt/surgery_cnt',status:'published',owner:'quality_team'},
+  {name:'readmission_30d',display:'30天再入院率',dataset:'inpatient_ds',formula:'readmit_cnt/discharge_cnt',status:'draft',owner:'quality_team'},
+  {name:'mpi_dedup_rate',display:'MPI去重率',dataset:'mpi_ds',formula:'(source-mpi)/source',status:'published',owner:'data_team'},
+];
+const SEM_DIMS=[
+  {name:'dept_name',display:'科室名称',dataset:'dept_ds',col:'dept_name',type:'varchar',sens:'public'},
+  {name:'tumor_type',display:'肿瘤类型',dataset:'diag_ds',col:'icd10_name',type:'varchar',sens:'public'},
+  {name:'drug_category',display:'药物类别',dataset:'drug_ds',col:'drug_category',type:'varchar',sens:'public'},
+  {name:'stat_date',display:'统计日期',dataset:'base_ds',col:'stat_date',type:'date',sens:'public'},
+  {name:'patient_id',display:'患者ID',dataset:'mpi_ds',col:'mpi_id',type:'varchar',sens:'restricted'},
+  {name:'id_card',display:'身份证号',dataset:'patient_ds',col:'id_card',type:'varchar',sens:'restricted'},
+  {name:'attending_dr',display:'主治医生',dataset:'doctor_ds',col:'dr_name',type:'varchar',sens:'internal'},
+  {name:'chemo_regimen',display:'化疗方案',dataset:'drug_ds',col:'regimen_name',type:'varchar',sens:'public'},
+];
+const SEM_DATASETS=[
+  {name:'drug_usage_ds',display:'药物使用数据集',table:'ads.ads_drug_usage_daily',time_field:'stat_date',fields:12},
+  {name:'expense_ds',display:'费用数据集',table:'ads.ads_expense_summary',time_field:'stat_date',fields:18},
+  {name:'inpatient_ds',display:'住院质量数据集',table:'ads.ads_inpatient_quality',time_field:'stat_date',fields:22},
+  {name:'mpi_ds',display:'MPI患者数据集',table:'ads.ads_mpi_summary',time_field:'create_date',fields:8},
+];
+const SEM_APPROVALS=[
+  {id:'REQ-001',metric:'readmission_30d',target:'published',requester:'quality_team',reason:'申请发布新口径',status:'pending',reviewer:''},
+  {id:'REQ-002',metric:'complication_rate',target:'deprecated',requester:'quality_team',reason:'旧版本下线',status:'approved',reviewer:'admin'},
+];
+const SEM_AUDIT=[
+  {type:'QUERY_COMPILE',tenant:'hospital-a',role:'analyst',status:'allowed',msg:'编译成功，返回 SQL 101 行',ts:1747122142},
+  {type:'QUERY_RUN',tenant:'hospital-a',role:'analyst',status:'allowed',msg:'查询执行成功，返回 50 行',ts:1747122200},
+  {type:'FIELD_BLOCKED',tenant:'hospital-b',role:'viewer',status:'denied',msg:'字段 id_card 因敏感级别 restricted 被屏蔽',ts:1747115000},
+  {type:'STATUS_CHANGE',tenant:'system',role:'admin',status:'allowed',msg:'complication_rate 状态变更为 deprecated',ts:1747100000},
+];
+
+const MOCK_SQL=`-- 语义查询 DSL 编译结果
+-- 租户: hospital-a | 角色: analyst
+-- 指标: ddi_intensity | 维度: stat_date, dept_name
+-- 时间范围: 2026-01-01 ~ 2026-01-31
+
+SELECT
+  d.stat_date,
+  dept.dept_name,
+  ROUND(
+    SUM(d.dose_mg) / NULLIF(COUNT(DISTINCT d.patient_id), 0),
+    4
+  ) AS ddi_intensity
+FROM ads.ads_drug_usage_daily d
+INNER JOIN dim.dim_dept dept
+  ON d.dept_code = dept.dept_code
+WHERE d.stat_date BETWEEN '2026-01-01' AND '2026-01-31'
+  AND d.tenant_id = 'hospital-a'
+  AND dept.is_active = 1
+  -- RBAC: role=analyst, 敏感字段已过滤
+GROUP BY d.stat_date, dept.dept_name
+ORDER BY d.stat_date, dept.dept_name
+LIMIT 100`;
+
+const MOCK_RESULT={columns:['stat_date','dept_name','ddi_intensity'],rows:[
+  {stat_date:'2026-01-01',dept_name:'肿瘤内科',ddi_intensity:1.2847},
+  {stat_date:'2026-01-01',dept_name:'普外科',ddi_intensity:0.9234},
+  {stat_date:'2026-01-02',dept_name:'肿瘤内科',ddi_intensity:1.3120},
+  {stat_date:'2026-01-02',dept_name:'血液科',ddi_intensity:1.4510},
+  {stat_date:'2026-01-03',dept_name:'肿瘤内科',ddi_intensity:1.2990},
+]};
+
+function SensTag({v}){
+  if(v==='restricted')return<span className="tag tag-rest">restricted</span>;
+  if(v==='internal')return<span className="tag tag-int">internal</span>;
+  return<span className="tag tag-pub">public</span>;
+}
+
+function DevAssistantPage(){
+  const [req,setReq]=React.useState('我要做抗肿瘤药物使用强度指标');
+  const [loading,setLoading]=React.useState(false);
+  const [plan,setPlan]=React.useState(null);
+  const [saved,setSaved]=React.useState(false);
+
+  const generate=async(text)=>{
+    const r=(text||req).trim();if(!r)return;
+    setReq(r);setLoading(true);setPlan(null);setSaved(false);
+    try{
+      const res=await fetch('/api/dev/metric-plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requirement:r})});
+      if(!res.ok)throw new Error('HTTP '+res.status);
+      const d=await res.json();
+      setPlan(d);
+    }catch(e){console.error('metric-plan error',e);
+      setPlan({metric_code:'ddi_intensity',metric_name:'抗肿瘤药物使用强度（DDI）',business_domain:'药物质量管理',source_tables:['ods.ods_drug_order','ods.ods_inpatient_record','dim.dim_drug'],dws_design:{table_name:'dws_drug_ddi_1d',description:'按科室/日期汇总的抗肿瘤药物使用强度宽表',grain:['stat_date','dept_code','drug_category'],measures:['total_dose_mg','patient_cnt','ddi_value']},ads_design:{table_name:'ads_drug_ddi_monitor',description:'面向监测系统的DDI指标服务层',grain:['stat_date','dept_name'],measures:['ddi_intensity','ddi_exceed_flag','benchmark']},sql_draft:`INSERT INTO dws.dws_drug_ddi_1d\nSELECT\n  CAST(o.order_date AS DATE) AS stat_date,\n  o.dept_code,\n  d.drug_category,\n  SUM(o.dose_mg) AS total_dose_mg,\n  COUNT(DISTINCT o.patient_id) AS patient_cnt,\n  ROUND(SUM(o.dose_mg)/COUNT(DISTINCT o.patient_id),4) AS ddi_value\nFROM ods.ods_drug_order o\nJOIN dim.dim_drug d ON o.drug_code = d.drug_code\nWHERE o.is_antitumor = 1\n  AND o.order_date = CURDATE()\nGROUP BY 1,2,3`,dq_rules:[{rule_code:'DDI-RANGE-001',rule_name:'DDI强度合理范围校验',severity:'CRITICAL',check_sql:`SELECT COUNT(*) FROM dws.dws_drug_ddi_1d\nWHERE ddi_value > 3.0 AND stat_date = CURDATE()`},{rule_code:'DDI-NULL-002',rule_name:'剂量字段非空校验',severity:'HIGH',check_sql:`SELECT COUNT(*) FROM dws.dws_drug_ddi_1d\nWHERE total_dose_mg IS NULL AND stat_date = CURDATE()`}],lineage:{upstream:['ods.ods_drug_order','ods.ods_inpatient_record'],dws:'dws.dws_drug_ddi_1d',ads:'ads.ads_drug_ddi_monitor'},drilldown_policy:{default_layer:'ADS',detail_layer:'DWD',forbidden:['ods.ods_inpatient_record.*','patient_id直接下钻'],required_guards:['tenant_id过滤','dept_auth校验']},warnings:['后端暂时不可用，显示本地示例数据']});
+    }finally{setLoading(false);}
+  };
+
+  const Tag=({items,cls='tag tag-blue'})=>items&&items.length?<div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:6}}>{items.map((t,i)=><span key={i} className={cls} style={{fontSize:12}}>{t}</span>)}</div>:<span style={{fontSize:12,color:'var(--tx3)'}}>暂无</span>;
+
+  return(
+    <div>
+      <div style={{fontSize:13,color:'var(--tx2)',marginBottom:16}}>输入业务指标需求，生成 DWS/ADS 建模草案、SQL 草稿、DQ 规则和血缘下钻策略。</div>
+      <div style={{display:'grid',gridTemplateColumns:'360px 1fr',gap:16,alignItems:'start'}}>
+        <Crd3 title="输入需求">
+          <textarea className="fi" rows={8} value={req} onChange={e=>setReq(e.target.value)} placeholder="例如：我要做抗肿瘤药物使用强度指标"/>
+          <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:12}}>
+            {['我要做抗肿瘤药物使用强度指标','分析疑似重复患者合并效果','住院费用异常检测规则'].map(ex=>(
+              <button key={ex} className="btn btn-default btn-sm" onClick={()=>generate(ex)}>{ex}</button>
+            ))}
+          </div>
+          <button className="btn btn-primary" style={{width:'100%',marginTop:12,justifyContent:'center'}} disabled={loading} onClick={()=>generate()}>
+            {loading?<><span className="spin"/>生成中...</>:<><i className="ri-sparkling-line"/>生成指标开发方案</>}
+          </button>
+        </Crd3>
+
+        <div>
+          {!plan&&!loading&&<div style={{background:'#f8fafc',border:'1px solid var(--card-b)',borderRadius:8,padding:32,textAlign:'center',color:'var(--tx3)'}}><i className="ri-lightbulb-line" style={{fontSize:40,display:'block',marginBottom:12}}/><div style={{fontSize:14,color:'var(--tx2)'}}>这里将展示指标开发方案</div><div style={{fontSize:12,marginTop:4}}>包含 DWS/ADS 设计、SQL 草稿、DQ 规则、血缘路径和下钻策略</div></div>}
+          {plan&&(
+            <div style={{display:'flex',flexDirection:'column',gap:12}}>
+              {plan.warnings&&plan.warnings.length>0&&plan.warnings.map((w,i)=><div key={i} style={{background:'var(--warn-bg)',border:'1px solid #fcd34d',borderRadius:6,padding:'10px 14px',fontSize:13,color:'var(--warn)',display:'flex',gap:8}}><i className="ri-alert-line" style={{flexShrink:0,marginTop:1}}/>{w}</div>)}
+              <Crd3 title="指标识别">
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                  {[['指标编码',plan.metric_code],['指标名称',plan.metric_name],['业务域',plan.business_domain]].map(([k,v])=>(
+                    <div key={k}><div style={{fontSize:11,color:'var(--tx3)'}}>{k}</div><div style={{fontWeight:500,marginTop:2}}>{v}</div></div>
+                  ))}
+                  <div><div style={{fontSize:11,color:'var(--tx3)'}}>推荐源表</div><Tag items={plan.source_tables} cls="tag tag-purple"/></div>
+                </div>
+                <button className="btn btn-primary btn-sm" style={{marginTop:12}} onClick={async()=>{
+                  try{
+                    await fetch('/api/dev/metric-assets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plan})});
+                  }catch(e){console.error('save asset error',e);}
+                  setSaved(true);
+                }}>
+                  {saved?<><i className="ri-check-line"/>已保存</>:<><i className="ri-save-line"/>保存为指标资产</>}
+                </button>
+              </Crd3>
+              <div className="g2e">
+                {[['DWS 汇总层设计',plan.dws_design],['ADS 服务层设计',plan.ads_design]].map(([title,d])=>(
+                  <Crd3 key={title} title={title}>
+                    <div style={{fontFamily:'monospace',fontWeight:600,fontSize:13,marginBottom:4}}>{d.table_name}</div>
+                    <div style={{fontSize:12,color:'var(--tx2)',marginBottom:10}}>{d.description}</div>
+                    <div style={{fontSize:12,color:'var(--tx3)',marginBottom:4}}>统计粒度</div><Tag items={d.grain} cls="tag tag-blue"/>
+                    <div style={{fontSize:12,color:'var(--tx3)',marginTop:10,marginBottom:4}}>核心度量</div><Tag items={d.measures} cls="tag tag-ok"/>
+                  </Crd3>
+                ))}
+              </div>
+              <Crd3 title="SQL 草稿"><div className="code-block">{plan.sql_draft}</div></Crd3>
+              <Crd3 title="DQ 规则草案">
+                {plan.dq_rules&&plan.dq_rules.map((r,i)=>(
+                  <div key={i} style={{marginBottom:i<plan.dq_rules.length-1?12:0,paddingBottom:i<plan.dq_rules.length-1?12:0,borderBottom:i<plan.dq_rules.length-1?'1px solid var(--card-b)':'none'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                      <span className={`tag ${r.severity==='CRITICAL'?'tag-err':'tag-warn'}`}>{r.severity}</span>
+                      <span style={{fontWeight:500,fontSize:13}}>{r.rule_code}</span>
+                      <span style={{fontSize:13,color:'var(--tx2)'}}>{r.rule_name}</span>
+                    </div>
+                    <div className="code-block" style={{fontSize:11.5}}>{r.check_sql}</div>
+                  </div>
+                ))}
+              </Crd3>
+              <div className="g2e">
+                <Crd3 title="血缘路径">
+                  <div style={{fontSize:12,color:'var(--tx3)',marginBottom:4}}>上游 → DWS → ADS</div>
+                  <div className="l-flow">
+                    {plan.lineage&&[...(plan.lineage.upstream||[]),plan.lineage.dws,plan.lineage.ads].map((n,i,arr)=>(
+                      <React.Fragment key={i}><span className="l-node">{n}</span>{i<arr.length-1&&<span className="l-arr">→</span>}</React.Fragment>
+                    ))}
+                  </div>
+                </Crd3>
+                <Crd3 title="安全下钻策略">
+                  {plan.drilldown_policy&&<>
+                    <div style={{fontSize:12,marginBottom:6}}><span style={{color:'var(--tx3)'}}>默认查询层：</span><span style={{fontWeight:500}}>{plan.drilldown_policy.default_layer}</span></div>
+                    <div style={{fontSize:12,color:'var(--tx3)',marginBottom:4}}>禁止项</div><Tag items={plan.drilldown_policy.forbidden} cls="tag tag-err"/>
+                    <div style={{fontSize:12,color:'var(--tx3)',margin:'8px 0 4px'}}>强制保护</div><Tag items={plan.drilldown_policy.required_guards} cls="tag tag-blue"/>
+                  </>}
+                </Crd3>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function useApiData(url,fallback){
+  const [data,setData]=React.useState(null);
+  const [err,setErr]=React.useState(false);
+  React.useEffect(()=>{
+    fetch(url).then(r=>r.json()).then(d=>setData(d.items||d)).catch(()=>setErr(true));
+  },[url]);
+  return err||data===null?fallback:(Array.isArray(data)?data:fallback);
+}
+
+function SemanticLayerPage(){
+  const [tab,setTab]=React.useState('query');
+  const [loading,setLoading]=React.useState(false);
+  const [sqlResult,setSqlResult]=React.useState(null);
+  const [queryResult,setQueryResult]=React.useState(null);
+  const [queryErr,setQueryErr]=React.useState('');
+  const [approvals,setApprovals]=React.useState(null);
+  const [auditEvents,setAuditEvents]=React.useState(null);
+
+  const tenantRef=React.useRef();const roleRef=React.useRef();const metricsRef=React.useRef();
+  const dimsRef=React.useRef();const limitRef=React.useRef();
+
+  const metrics=useApiData('/api/v1/semantic/metrics',SEM_METRICS.map(m=>({name:m.name,display_name:m.display,dataset:m.dataset,formula:m.formula,status:m.status,owner:m.owner})));
+  const dimensions=useApiData('/api/v1/semantic/dimensions',SEM_DIMS.map(d=>({name:d.name,display_name:d.display,dataset:d.dataset,column:d.col,type:d.type,sensitivity:d.sens})));
+  const datasets=useApiData('/api/v1/semantic/datasets',SEM_DATASETS.map(d=>({name:d.name,display_name:d.display,physical_table:d.table,time_field:d.time_field,field_count:d.fields})));
+
+  React.useEffect(()=>{
+    if(tab==='approvals'&&approvals===null){
+      fetch('/api/v1/semantic/governance/metric-status-requests').then(r=>r.json())
+        .then(d=>setApprovals(d.items||SEM_APPROVALS)).catch(()=>setApprovals(SEM_APPROVALS));
+    }
+    if(tab==='audit'&&auditEvents===null){
+      fetch('/api/v1/semantic/audit/events').then(r=>r.json())
+        .then(d=>setAuditEvents(d.items||SEM_AUDIT)).catch(()=>setAuditEvents(SEM_AUDIT));
+    }
+  },[tab]);
+
+  const buildReq=()=>({
+    tenant_id:(tenantRef.current?.value||'hospital-a').trim(),
+    role:(roleRef.current?.value||'analyst').trim(),
+    metrics:(metricsRef.current?.value||'ddi_intensity').split(/[,\s]+/).map(s=>s.trim()).filter(Boolean),
+    dimensions:(dimsRef.current?.value||'stat_date').split(/[,\s]+/).map(s=>s.trim()).filter(Boolean),
+    filters:[],
+    limit:parseInt(limitRef.current?.value||'100',10)||100,
+  });
+
+  const doCompile=async()=>{
+    setLoading(true);setSqlResult(null);setQueryResult(null);setQueryErr('');
+    try{
+      const res=await fetch('/api/v1/semantic/compile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(buildReq())});
+      if(!res.ok){const e=await res.json();throw new Error(e.detail||'HTTP '+res.status);}
+      const d=await res.json();setSqlResult(d.sql||JSON.stringify(d,null,2));
+    }catch(e){setSqlResult('-- 编译失败: '+e.message);}
+    finally{setLoading(false);}
+  };
+
+  const doQuery=async()=>{
+    setLoading(true);setQueryResult(null);setQueryErr('');
+    try{
+      const res=await fetch('/api/v1/semantic/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(buildReq())});
+      if(!res.ok){const e=await res.json();throw new Error(e.detail||'HTTP '+res.status);}
+      const d=await res.json();
+      if(d.sql&&!sqlResult)setSqlResult(d.sql);
+      const rows=d.rows||d.data||[];
+      const cols=d.columns||(rows.length?Object.keys(rows[0]):[]);
+      setQueryResult({columns:cols,rows});
+    }catch(e){setQueryErr(e.message);}
+    finally{setLoading(false);}
+  };
+
+  const approve=async(id)=>{
+    try{await fetch(`/api/v1/semantic/governance/metric-status-requests/${id}/approve`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reviewer:'admin',comment:'通过审批'})});}catch{}
+    setApprovals(p=>(p||[]).map(r=>r.id===id||r.request_id===id?{...r,status:'approved',reviewer:'admin'}:r));
+  };
+  const reject=async(id)=>{
+    try{await fetch(`/api/v1/semantic/governance/metric-status-requests/${id}/reject`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reviewer:'admin',comment:'驳回'})});}catch{}
+    setApprovals(p=>(p||[]).map(r=>r.id===id||r.request_id===id?{...r,status:'rejected',reviewer:'admin'}:r));
+  };
+
+  const effApprovals=approvals||SEM_APPROVALS;
+  const effAudit=auditEvents||SEM_AUDIT;
+
+  return(
+    <>
+      <div style={{fontSize:13,color:'var(--tx2)',marginBottom:16}}>统一指标口径，通过受控 DSL 编译 SQL，执行租户、角色和敏感字段策略校验。</div>
+      <div className="tabs">
+        {[['query','语义查询'],['metrics','指标目录'],['dimensions','维度目录'],['datasets','数据集'],['approvals','审批流'],['audit','审计事件']].map(([k,l])=>(
+          <div key={k} className={`tab${tab===k?' act':''}`} onClick={()=>setTab(k)}>{l}</div>
+        ))}
+      </div>
+
+      {tab==='query'&&(
+        <div style={{display:'grid',gridTemplateColumns:'300px 1fr',gap:16,alignItems:'start'}}>
+          <Crd3 title="查询 DSL">
+            {[['租户',tenantRef,'hospital-a'],['角色',roleRef,'analyst'],['指标（逗号分隔）',metricsRef,'ddi_intensity'],['维度（逗号分隔）',dimsRef,'stat_date, dept_name'],['行数限制',limitRef,'100']].map(([l,r,v])=>(
+              <div key={l} style={{marginBottom:10}}>
+                <div className="fl">{l}</div>
+                <input className="fi" ref={r} defaultValue={v}/>
+              </div>
+            ))}
+            <div style={{display:'flex',gap:8,marginTop:4}}>
+              <button className="btn btn-default" style={{flex:1,justifyContent:'center'}} onClick={doCompile} disabled={loading}>{loading?<span className="spin-dark" style={{width:12,height:12,border:'2px solid #e2e8f0',borderTopColor:'var(--tx2)',borderRadius:'50%',display:'inline-block'}}/>:<i className="ri-code-s-slash-line"/>} 编译 SQL</button>
+              <button className="btn btn-primary" style={{flex:1,justifyContent:'center'}} onClick={doQuery} disabled={loading}>{loading?<span className="spin"/>:<i className="ri-play-circle-line"/>} 执行查询</button>
+            </div>
+          </Crd3>
+          <div style={{display:'flex',flexDirection:'column',gap:12}}>
+            <Crd3 title="SQL 预览">
+              {sqlResult?<div className="code-block">{sqlResult}</div>:<div style={{fontSize:13,color:'var(--tx3)',padding:'8px 0'}}>点击"编译 SQL"后在此显示</div>}
+            </Crd3>
+            <Crd3 title="查询结果">
+              {queryErr&&<div style={{color:'var(--err)',fontSize:13,padding:'8px 0'}}>{queryErr}</div>}
+              {queryResult&&queryResult.rows.length>0?(
+                <table className="tbl"><thead><tr>{queryResult.columns.map(c=><th key={c}>{c}</th>)}</tr></thead>
+                <tbody>{queryResult.rows.map((r,i)=><tr key={i}>{queryResult.columns.map(c=><td key={c} style={{fontFamily:typeof r[c]==='number'?'monospace':'inherit'}}>{String(r[c]??'')}</td>)}</tr>)}</tbody></table>
+              ):(!queryErr&&<div style={{fontSize:13,color:'var(--tx3)',padding:'8px 0'}}>点击"执行查询"后在此显示</div>)}
+            </Crd3>
+          </div>
+        </div>
+      )}
+
+      {tab==='metrics'&&(
+        <Crd3 title="指标目录" extra={<span style={{fontSize:12,color:'var(--tx2)'}}>{metrics.length} 个指标</span>}>
+          <table className="tbl"><thead><tr><th>指标名称</th><th>编码</th><th>数据集</th><th>公式</th><th>状态</th><th>Owner</th></tr></thead>
+          <tbody>{metrics.map((m,i)=>{
+            const name=m.display_name||m.display||m.name;
+            const code=m.name;
+            const ds=m.dataset||m.source_dataset||'—';
+            const formula=m.formula||'—';
+            const status=m.status||'draft';
+            const owner=m.owner||'—';
+            return(
+              <tr key={i}>
+                <td style={{fontWeight:500}}>{name}</td>
+                <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{code}</td>
+                <td style={{fontSize:12,color:'var(--tx2)'}}>{ds}</td>
+                <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{formula}</td>
+                <td><span className={`tag ${status==='published'?'tag-ok':'tag-gray'}`}>{status}</span></td>
+                <td style={{fontSize:12,color:'var(--tx2)'}}>{owner}</td>
+              </tr>
+            );
+          })}</tbody></table>
+        </Crd3>
+      )}
+
+      {tab==='dimensions'&&(
+        <Crd3 title="维度目录">
+          <table className="tbl"><thead><tr><th>维度名称</th><th>编码</th><th>数据集</th><th>字段</th><th>类型</th><th>敏感级别</th></tr></thead>
+          <tbody>{dimensions.map((d,i)=>{
+            const name=d.display_name||d.display||d.name;
+            const code=d.name;
+            const ds=d.dataset||d.source_dataset||'—';
+            const col=d.column||d.col||'—';
+            const type=d.type||d.data_type||'—';
+            const sens=d.sensitivity||d.sens||'public';
+            return(
+              <tr key={i}>
+                <td style={{fontWeight:500}}>{name}</td>
+                <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{code}</td>
+                <td style={{fontSize:12,color:'var(--tx2)'}}>{ds}</td>
+                <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{col}</td>
+                <td style={{fontSize:12,color:'var(--tx2)'}}>{type}</td>
+                <td><SensTag v={sens}/></td>
+              </tr>
+            );
+          })}</tbody></table>
+        </Crd3>
+      )}
+
+      {tab==='datasets'&&(
+        <Crd3 title="数据集">
+          <table className="tbl"><thead><tr><th>数据集名称</th><th>编码</th><th>物理表</th><th>时间字段</th><th>字段数</th></tr></thead>
+          <tbody>{datasets.map((d,i)=>{
+            const name=d.display_name||d.display||d.name;
+            const code=d.name;
+            const tbl=d.physical_table||d.table||'—';
+            const tf=d.time_field||'—';
+            const fc=d.field_count||d.fields||'—';
+            return(
+              <tr key={i}>
+                <td style={{fontWeight:500}}>{name}</td>
+                <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{code}</td>
+                <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{tbl}</td>
+                <td style={{fontFamily:'monospace',fontSize:12,color:'var(--tx2)'}}>{tf}</td>
+                <td>{fc}</td>
+              </tr>
+            );
+          })}</tbody></table>
+        </Crd3>
+      )}
+
+      {tab==='approvals'&&(
+        <Crd3 title="指标状态审批">
+          <table className="tbl"><thead><tr><th>指标</th><th>目标状态</th><th>申请人</th><th>原因</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody>{effApprovals.map((r)=>{
+            const id=r.id||r.request_id;
+            const metric=r.metric||r.metric_name;
+            const target=r.target||r.requested_status;
+            const status=r.status;
+            return(
+              <tr key={id}>
+                <td style={{fontFamily:'monospace',fontSize:12}}>{metric}</td>
+                <td><span className="tag tag-gray">{target}</span></td>
+                <td style={{fontSize:12,color:'var(--tx2)'}}>{r.requester}</td>
+                <td style={{fontSize:12,color:'var(--tx2)'}}>{r.reason}</td>
+                <td><span className={`tag ${status==='pending'?'tag-warn':status==='approved'?'tag-ok':'tag-err'}`}>{status}</span></td>
+                <td>{status==='pending'?<div style={{display:'flex',gap:6}}><button className="btn btn-primary btn-sm" onClick={()=>approve(id)}>通过</button><button className="btn btn-danger btn-sm" onClick={()=>reject(id)}>驳回</button></div>:<span style={{fontSize:12,color:'var(--tx3)'}}>已处理</span>}</td>
+              </tr>
+            );
+          })}</tbody></table>
+        </Crd3>
+      )}
+
+      {tab==='audit'&&(
+        <Crd3 title="审计事件">
+          <table className="tbl"><thead><tr><th>事件类型</th><th>租户</th><th>角色</th><th>状态</th><th>说明</th><th>时间</th></tr></thead>
+          <tbody>{effAudit.map((e,i)=>{
+            const evType=e.type||e.event_type;
+            const tenant=e.tenant||e.tenant_id;
+            const role=e.role;
+            const status=e.status||e.result;
+            const msg=e.msg||e.message||e.detail;
+            const ts=e.ts||e.created_at;
+            const timeStr=ts?(typeof ts==='number'?new Date(ts*1000).toLocaleString():new Date(ts).toLocaleString()):'—';
+            return(
+              <tr key={i}>
+                <td style={{fontFamily:'monospace',fontSize:12,fontWeight:500}}>{evType}</td>
+                <td style={{fontSize:12,color:'var(--tx2)'}}>{tenant}</td>
+                <td style={{fontSize:12,color:'var(--tx2)'}}>{role}</td>
+                <td><span className={`tag ${status==='allowed'||status==='success'?'tag-ok':'tag-err'}`}>{status}</span></td>
+                <td style={{fontSize:12,color:'var(--tx2)',maxWidth:280}}>{msg}</td>
+                <td style={{fontSize:12,color:'var(--tx3)',whiteSpace:'nowrap'}}>{timeStr}</td>
+              </tr>
+            );
+          })}</tbody></table>
+        </Crd3>
+      )}
+    </>
+  );
+}
+
+window.__p3={DevAssistantPage,SemanticLayerPage};
+</script>
+
+<!-- ── AI Chat ─────────────────────────────────── -->
+<script type="text/babel">
+const DEFAULT_SUGS=['今日有哪些 CRITICAL 级别的 DQ 告警？','上个月抗肿瘤药物使用强度趋势如何？','疑似重复患者主要来自哪些系统？','近 30 天 DQ 评分最低的是哪天？'];
+const CHAT_SESSION_ID='sess-'+Math.random().toString(36).slice(2,10);
+
+function AiChat(){
+  const [open,setOpen]=React.useState(false);
+  const [msgs,setMsgs]=React.useState([]);
+  const [input,setInput]=React.useState('');
+  const [loading,setLoading]=React.useState(false);
+  const [sqlOpen,setSqlOpen]=React.useState({});
+  const [dataOpen,setDataOpen]=React.useState({});
+  const [sugs,setSugs]=React.useState(DEFAULT_SUGS);
+  const ref=React.useRef(null);
+
+  React.useEffect(()=>{
+    fetch('/api/chat/suggestions?count=4').then(r=>r.json()).then(d=>{
+      if(d.suggestions&&d.suggestions.length)setSugs(d.suggestions);
+    }).catch(()=>{});
+  },[]);
+
+  React.useEffect(()=>{if(ref.current)ref.current.scrollTop=ref.current.scrollHeight;},[msgs,loading]);
+
+  const send=async(text)=>{
+    const msg=(text||input).trim();if(!msg||loading)return;
+    setInput('');setMsgs(p=>[...p,{role:'user',content:msg}]);setLoading(true);
+    try{
+      const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:CHAT_SESSION_ID,message:msg,user_id:'frontend'})});
+      if(!res.ok)throw new Error('HTTP '+res.status);
+      const d=await res.json();
+      setMsgs(p=>[...p,{role:'bot',content:d.answer||'（无回答）',sql:d.sql||'',data:d.data||[],row_count:d.row_count||0}]);
+    }catch(e){setMsgs(p=>[...p,{role:'bot',content:'服务暂时不可用，请稍后重试。（'+e.message+')'}]);}
+    finally{setLoading(false);}
+  };
+
+  return(
+    <>
+      {!open&&<div className="chat-fab" onClick={()=>setOpen(true)} title="AI 数据助手"><i className="ri-robot-2-line"/></div>}
+      <div className={`chat-panel${open?' open':''}`}>
+        <div className="chat-hd">
+          <div style={{width:32,height:32,borderRadius:'50%',background:'rgba(255,255,255,.1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}><i className="ri-robot-2-line"/></div>
+          <div style={{flex:1}}><div style={{fontWeight:600,fontSize:14}}>AI 数据助手</div><div style={{fontSize:11,color:'rgba(255,255,255,.4)',marginTop:1}}>自然语言查询医疗数据</div></div>
+          <i className="ri-close-line" style={{cursor:'pointer',fontSize:20,color:'rgba(255,255,255,.5)',padding:4}} onClick={()=>setOpen(false)}/>
+        </div>
+        <div className="chat-msgs" ref={ref}>
+          {msgs.length===0&&(
+            <div style={{paddingTop:24,display:'flex',flexDirection:'column',alignItems:'center'}}>
+              <div style={{width:56,height:56,borderRadius:'50%',background:'var(--accent-l)',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:12}}><i className="ri-robot-2-line" style={{fontSize:26,color:'var(--accent)'}}/></div>
+              <div style={{fontSize:14,fontWeight:500,marginBottom:4}}>你好，我是数据助手</div>
+              <div style={{fontSize:12,color:'var(--tx3)',marginBottom:20}}>可以用自然语言向我提问</div>
+              <div style={{width:'100%',display:'flex',flexDirection:'column',gap:8}}>
+                <div style={{fontSize:12,color:'var(--tx3)',marginBottom:2}}>推荐问题：</div>
+                {sugs.map((s,i)=><div key={i} className="chip" onClick={()=>send(s)}>{s}</div>)}
+              </div>
+            </div>
+          )}
+          {msgs.map((m,i)=>(
+            <div key={i} className={`msg-row ${m.role}`}>
+              <div className="msg-bubble">{m.content}</div>
+              {m.role==='bot'&&m.sql&&(
+                <div style={{marginTop:4,maxWidth:'90%'}}>
+                  <button className="sql-btn" onClick={()=>setSqlOpen(p=>({...p,[i]:!p[i]}))}>
+                    <i className="ri-code-s-slash-line" style={{marginRight:4}}/>{sqlOpen[i]?'隐藏 SQL':'查看 SQL'}
+                  </button>
+                  {sqlOpen[i]&&<div className="sql-block">{m.sql}</div>}
+                </div>
+              )}
+              {m.role==='bot'&&m.data&&m.data.length>0&&(
+                <div style={{marginTop:4,maxWidth:'94%'}}>
+                  <button className="sql-btn" onClick={()=>setDataOpen(p=>({...p,[i]:!p[i]}))}>
+                    <i className="ri-table-line" style={{marginRight:4}}/>{dataOpen[i]?'收起数据':'查看数据'} ({m.row_count} 行)
+                  </button>
+                  {dataOpen[i]&&(
+                    <div style={{overflowX:'auto',marginTop:6,borderRadius:6,border:'1px solid var(--card-b)'}}>
+                      <table className="tbl" style={{fontSize:11.5}}>
+                        <thead><tr>{Object.keys(m.data[0]).map(c=><th key={c}>{c}</th>)}</tr></thead>
+                        <tbody>{m.data.slice(0,10).map((r,ri)=><tr key={ri}>{Object.values(r).map((v,vi)=><td key={vi}>{String(v)}</td>)}</tr>)}</tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+          {loading&&<div className="msg-row bot"><div className="msg-bubble"><div className="dot-anim"><span/><span/><span/></div></div></div>}
+        </div>
+        <div className="chat-inp-row">
+          <input placeholder="输入你的数据问题..." value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}} disabled={loading}/>
+          <button onClick={()=>send()} disabled={loading||!input.trim()}><i className="ri-send-plane-fill"/></button>
+        </div>
+      </div>
+    </>
+  );
+}
+window.__AiChat=AiChat;
+</script>
+
+<!-- ── App ────────────────────────────────────── -->
+<script type="text/babel">
+const {Sidebar:SB,Topbar:TB,Placeholder:PLH}=window.__sc;
+const {DashboardPage:DP,DQPage:DQP,DrugPage:DrugP}=window.__p1;
+const {MPIPage:MPIP,ExpensePage:ExpP,InpatientPage:InpP}=window.__p2;
+const {DevAssistantPage:DevP,SemanticLayerPage:SemP}=window.__p3;
+const AC=window.__AiChat;
+
+const TITLES={dashboard:'首页',dq:'数据质量',mpi:'患者主数据',drug:'药物监测',expense:'费用分析',inpatient:'住院质量',dev:'AI 指标开发',semantic:'语义层'};
+
+function App(){
+  const [page,setPage]=React.useState('dashboard');
+  const [col,setCol]=React.useState(false);
+  const render=()=>{
+    if(page==='dashboard')return<DP/>;if(page==='dq')return<DQP/>;if(page==='mpi')return<MPIP/>;
+    if(page==='drug')return<DrugP/>;if(page==='expense')return<ExpP/>;if(page==='inpatient')return<InpP/>;
+    if(page==='dev')return<DevP/>;if(page==='semantic')return<SemP/>;return<PLH page={TITLES[page]}/>;
+  };
+  return(
+    <>
+      <SB active={page} onNav={setPage} col={col} onToggle={()=>setCol(c=>!c)}/>
+      <div className="main"><TB title={TITLES[page]}/><main className="content">{render()}</main></div>
+      <AC/>
+    </>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
